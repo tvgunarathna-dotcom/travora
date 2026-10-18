@@ -1,634 +1,633 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   MapPin,
-  Layers,
   Search,
+  Layers,
+  Sparkles,
   ShieldCheck,
   ShieldAlert,
-  Car,
+  Clock,
   Star,
-  Navigation,
-  Crosshair,
+  CheckCircle,
   ExternalLink,
   ChevronRight,
-  Info,
-  Clock,
-  HeartPulse,
-  Coffee,
-  CheckCircle,
-  Building2,
-  X,
-  Phone,
+  Download,
+  AlertTriangle,
+  Maximize2,
+  Crosshair,
 } from 'lucide-react';
-import { MapPOI, SafetyZone, HelaGoDriver } from '../../types';
-import { helagoDrivers, mockDynamicPOIs } from '../../data/mockData';
-import { apiService } from '../../services/api';
+import { MapPOI, SafetyZone, AreaArticle } from '../../types';
+import { mockSafetyZones, mockDynamicPOIs, mockAreaArticles } from '../../data/mockData';
+import { ArticleDetailModal } from './ArticleDetailModal';
 
 interface MapScreenProps {
-  onBookDriver: (driver: HelaGoDriver) => void;
-  onOpenAssistantWithLocation: (zoneName: string) => void;
+  onAskSerenaAI: (query: string) => void;
+  onTriggerUpgradePrompt: () => void;
   theme: 'dark' | 'light';
 }
 
 export const MapScreen: React.FC<MapScreenProps> = ({
-  onBookDriver,
-  onOpenAssistantWithLocation,
+  onAskSerenaAI,
+  onTriggerUpgradePrompt,
   theme,
 }) => {
   const isDark = theme === 'dark';
 
-  // Search & City state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeCity, setActiveCity] = useState<'Colombo' | 'Mirissa' | 'Kandy' | 'Galle' | 'Ella'>('Colombo');
+  // District Search (Default Kandy as shown in PDF, but any Sri Lankan district searchable)
+  const [searchQuery, setSearchQuery] = useState('Kandy');
+  const [activeDistrict, setActiveDistrict] = useState('Kandy');
 
-  // Layer filter toggles
-  const [showSafetyHeatmap, setShowSafetyHeatmap] = useState(true);
-  const [showPOIs, setShowPOIs] = useState(true);
-  const [showDrivers, setShowDrivers] = useState(true);
-  const [poiCategory, setPoiCategory] = useState<string>('all');
+  // Filter Categories
+  const [showHeatmap, setShowHeatmap] = useState(true);
+  const [activeCategory, setActiveCategory] = useState<string>('all');
 
-  // Data states
-  const [safetyZones, setSafetyZones] = useState<SafetyZone[]>([]);
-  const [pois, setPois] = useState<MapPOI[]>([]);
-  const [selectedZone, setSelectedZone] = useState<SafetyZone | null>(null);
+  // Selected Zone or POI for details card (Default to Gonawala Town Area matching Screenshot 2)
+  const [selectedZone, setSelectedZone] = useState<SafetyZone>(mockSafetyZones[0]);
   const [selectedPOI, setSelectedPOI] = useState<MapPOI | null>(null);
-  const [selectedDriver, setSelectedDriver] = useState<HelaGoDriver | null>(null);
 
-  // City coordinates map
-  const cityCoordinates: Record<string, { lat: number; lng: number; zoomLabel: string }> = {
-    Colombo: { lat: 6.9271, lng: 79.8612, zoomLabel: 'Colombo Metropolitan Area' },
-    Mirissa: { lat: 5.9482, lng: 80.4578, zoomLabel: 'Mirissa Coastal Beach Sector' },
-    Kandy: { lat: 7.2906, lng: 80.6337, zoomLabel: 'Kandy Cultural Valley' },
-    Galle: { lat: 6.0329, lng: 80.2168, zoomLabel: 'Galle Fort Ramparts' },
-    Ella: { lat: 6.8667, lng: 81.0466, zoomLabel: 'Ella Mountain Ridge' },
-  };
+  // Article Modal
+  const [selectedArticle, setSelectedArticle] = useState<AreaArticle | null>(null);
 
-  useEffect(() => {
-    loadMapData();
-  }, [activeCity, poiCategory]);
-
-  const loadMapData = async () => {
-    try {
-      const [zonesRes, poisRes] = await Promise.all([
-        apiService.getSafetyZones(activeCity),
-        apiService.getPOIs(poiCategory),
-      ]);
-      if (zonesRes.success) setSafetyZones(zonesRes.zones);
-      if (poisRes.success) {
-        // Filter by active city if present or include regional
-        const filtered = poisRes.data.filter(
-          (p) => p.city.toLowerCase() === activeCity.toLowerCase() || p.category === 'safe_cafe' || p.category === 'tourist_police'
-        );
-        setPois(filtered.length > 0 ? filtered : poisRes.data);
-      }
-    } catch (e) {
-      console.warn('Map load fallback:', e);
-    }
-  };
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return;
-
-    if (query.includes('kandy')) setActiveCity('Kandy');
-    else if (query.includes('mirissa')) setActiveCity('Mirissa');
-    else if (query.includes('galle')) setActiveCity('Galle');
-    else if (query.includes('ella')) setActiveCity('Ella');
-    else setActiveCity('Colombo');
-  };
-
-  const getPoiBadge = (cat: string) => {
-    switch (cat) {
-      case 'police':
-        return { label: 'Police', color: 'bg-blue-600', icon: '🛡️' };
-      case 'tourist_police':
-        return { label: 'Tourist Police', color: 'bg-purple-600', icon: '👮‍♀️' };
-      case 'hospital':
-        return { label: '24h Hospital', color: 'bg-rose-600', icon: '🏥' };
-      case 'safe_cafe':
-        return { label: 'Verified Cafe', color: 'bg-amber-600', icon: '☕' };
-      case 'pharmacy':
-        return { label: '24h Pharmacy', color: 'bg-emerald-600', icon: '💊' };
-      default:
-        return { label: 'Safe POI', color: 'bg-purple-600', icon: '📍' };
+    if (searchQuery.trim()) {
+      setActiveDistrict(searchQuery.trim());
+      // Find matching zone if available
+      const match = mockSafetyZones.find((z) =>
+        z.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        z.zoneName.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      if (match) setSelectedZone(match);
     }
   };
+
+  // Filter POIs
+  const filteredPOIs = mockDynamicPOIs.filter((poi) => {
+    if (activeCategory === 'all') return true;
+    if (activeCategory === 'safe_cafes' && poi.category === 'safe_cafe') return true;
+    if (activeCategory === 'hospitals' && poi.category === 'hospital') return true;
+    if (activeCategory === 'police' && (poi.category === 'police' || poi.category === 'tourist_police')) return true;
+    if (activeCategory === 'restrooms' && poi.category === 'restroom') return true;
+    if (activeCategory === 'pharmacies' && poi.category === 'pharmacy') return true;
+    return false;
+  });
 
   return (
-    <div className="space-y-4 pb-14 font-['Plus_Jakarta_Sans',sans-serif]">
-      {/* 1. Functional Dynamic Location Search Bar */}
-      <form onSubmit={handleSearchSubmit} className="relative">
-        <Search className="w-4 h-4 absolute left-3.5 top-3 text-purple-500" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={`Search Colombo, Kandy, Mirissa, or any safety pin...`}
-          className={`w-full rounded-2xl pl-10 pr-24 py-2.5 text-xs border focus:outline-none focus:border-purple-600 transition ${
-            isDark
-              ? 'bg-[#150f24] border-purple-900/40 text-stone-100 placeholder-stone-500'
-              : 'bg-white border-purple-100 text-stone-900 placeholder-stone-400 shadow-xs'
-          }`}
-        />
+    <div className="flex flex-col gap-3 p-3 sm:p-4 pb-20 select-none">
+      {/* 1. TOP SEARCH BAR (Matching Screenshot 2) */}
+      <form onSubmit={handleSearch} className="flex items-center gap-2">
+        <div className={`flex items-center gap-2 flex-1 px-3.5 py-2.5 rounded-2xl border transition-all ${
+          isDark
+            ? 'bg-[#150a28] border-purple-800/50 text-white'
+            : 'bg-white border-purple-200 text-stone-900 shadow-xs'
+        }`}>
+          <Search className="w-4 h-4 text-purple-400 shrink-0" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search here (e.g. Kandy, Colombo, Galle, Ella)..."
+            className="bg-transparent text-xs sm:text-sm text-stone-900 dark:text-white placeholder-stone-400 dark:placeholder-purple-300/40 outline-none w-full font-medium"
+          />
+        </div>
         <button
           type="submit"
-          className="absolute right-1.5 top-1.5 bottom-1.5 px-3 rounded-xl bg-purple-700 hover:bg-purple-600 text-white text-[11px] font-bold shadow-xs transition"
+          className="bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white font-bold text-xs px-5 py-2.5 rounded-2xl shadow-md transition active:scale-95"
         >
           Explore
         </button>
       </form>
 
-      {/* City Switcher Quick Pills */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 text-xs">
-        <span className="text-[11px] text-stone-500 dark:text-stone-400 shrink-0">City:</span>
-        {(['Colombo', 'Mirissa', 'Kandy', 'Galle', 'Ella'] as const).map((city) => (
-          <button
-            key={city}
-            onClick={() => setActiveCity(city)}
-            className={`px-3 py-1 rounded-xl shrink-0 font-semibold border transition ${
-              activeCity === city
-                ? 'bg-purple-700 text-white border-purple-600 shadow-xs'
-                : isDark
-                ? 'bg-stone-900/80 border-purple-900/30 text-stone-400 hover:text-white'
-                : 'bg-purple-50 border-purple-100 text-purple-900 hover:bg-purple-100'
-            }`}
-          >
-            {city}
-          </button>
-        ))}
-      </div>
-
-      {/* Layer Toggles & Filters */}
-      <div className={`p-3 rounded-2xl border space-y-2 ${
-        isDark ? 'bg-[#150f24] border-purple-900/40' : 'bg-white border-purple-100 shadow-xs'
-      }`}>
-        <div className="grid grid-cols-3 gap-1.5 text-xs">
-          <button
-            onClick={() => setShowSafetyHeatmap(!showSafetyHeatmap)}
-            className={`p-2 rounded-xl flex items-center justify-center gap-1.5 border font-semibold transition ${
-              showSafetyHeatmap
-                ? 'bg-purple-600 text-white border-purple-500 shadow-xs'
-                : isDark
-                ? 'bg-stone-950 border-stone-800 text-stone-500'
-                : 'bg-stone-100 border-stone-200 text-stone-500'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Safety Heatmap</span>
-          </button>
-
-          <button
-            onClick={() => setShowPOIs(!showPOIs)}
-            className={`p-2 rounded-xl flex items-center justify-center gap-1.5 border font-semibold transition ${
-              showPOIs
-                ? 'bg-purple-600 text-white border-purple-500 shadow-xs'
-                : isDark
-                ? 'bg-stone-950 border-stone-800 text-stone-500'
-                : 'bg-stone-100 border-stone-200 text-stone-500'
-            }`}
-          >
-            <MapPin className="w-3.5 h-3.5" />
-            <span>Safe POIs</span>
-          </button>
-
-          <button
-            onClick={() => setShowDrivers(!showDrivers)}
-            className={`p-2 rounded-xl flex items-center justify-center gap-1.5 border font-semibold transition ${
-              showDrivers
-                ? 'bg-purple-600 text-white border-purple-500 shadow-xs'
-                : isDark
-                ? 'bg-stone-950 border-stone-800 text-stone-500'
-                : 'bg-stone-100 border-stone-200 text-stone-500'
-            }`}
-          >
-            <Car className="w-3.5 h-3.5" />
-            <span>HelaGo Fleet</span>
-          </button>
-        </div>
-
-        {/* POI Category Sub-Filters */}
-        {showPOIs && (
-          <div className="flex items-center gap-1 overflow-x-auto text-[11px] pt-1">
-            {[
-              { id: 'all', label: 'All POIs' },
-              { id: 'safe_cafe', label: '☕ Safe Cafes' },
-              { id: 'tourist_police', label: '👮‍♀️ Tourist Police' },
-              { id: 'hospital', label: '🏥 24h Medical' },
-              { id: 'pharmacy', label: '💊 Hygiene & Pads' },
-            ].map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setPoiCategory(cat.id)}
-                className={`px-2 py-0.5 rounded-lg shrink-0 font-medium transition ${
-                  poiCategory === cat.id
-                    ? 'bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/40 font-bold'
-                    : 'text-stone-400 hover:text-stone-200'
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 2. DYNAMIC REALISTIC MAP CANVAS CONTAINER */}
-      <div className={`relative w-full h-[320px] rounded-3xl overflow-hidden border shadow-inner select-none ${
-        isDark ? 'bg-[#0d0918] border-purple-900/40' : 'bg-[#f4effc] border-purple-200'
-      }`}>
-        {/* Dynamic Map Grid Pattern */}
-        <div className={`absolute inset-0 opacity-20 pointer-events-none ${
-          isDark
-            ? 'bg-[radial-gradient(#9333ea_1px,transparent_1px)] [background-size:16px_16px]'
-            : 'bg-[radial-gradient(#6b21a8_1px,transparent_1px)] [background-size:16px_16px]'
-        }`} />
-
-        {/* Simulated Map Arterials & Topography */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-40">
-          <path
-            d="M 30,0 Q 60,110 35,210 T 50,320"
-            fill="none"
-            stroke="#7c3aed"
-            strokeWidth="6"
-          />
-          <path
-            d="M 75,0 L 85,130 L 70,240 L 80,320"
-            fill="none"
-            stroke="#9333ea"
-            strokeWidth="3.5"
-            strokeDasharray="6,3"
-          />
-          <path
-            d="M 130,0 L 145,150 L 125,270 L 135,320"
-            fill="none"
-            stroke="#a855f7"
-            strokeWidth="2.5"
-          />
-        </svg>
-
-        {/* Dynamic Center Tag */}
-        <div className="absolute top-2.5 left-3 z-10 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-xl border border-purple-900/60 text-[10px] text-purple-200 flex items-center gap-1.5 shadow-md">
-          <Navigation className="w-3 h-3 text-purple-400" />
-          <span>{cityCoordinates[activeCity]?.zoomLabel || activeCity}</span>
-        </div>
-
-        {/* GPS Current User Marker */}
-        <div className="absolute top-[50%] left-[45%] -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center">
-          <div className="relative flex items-center justify-center">
-            <span className="w-9 h-9 rounded-full bg-purple-600/30 animate-ping absolute" />
-            <span className="w-5 h-5 rounded-full bg-purple-600 border-2 border-white shadow-xl flex items-center justify-center text-white text-[9px] font-bold">
-              •
-            </span>
-          </div>
-          <span className="bg-stone-900/95 border border-purple-600 text-purple-200 text-[9px] px-1.5 py-0.2 rounded shadow-md mt-1 whitespace-nowrap font-bold">
-            You are here
-          </span>
-        </div>
-
-        {/* SAFETY HEATMAP ZONES OVERLAYS */}
-        {showSafetyHeatmap && (
-          <>
-            {/* Cinnamon Gardens / Primary Safe Zone */}
-            <div
-              onClick={() => {
-                const z = safetyZones[0] || {
-                  zoneId: 'cinnamon',
-                  zoneName: `${activeCity} Safe Diplomatic Sector`,
-                  safetyScore: 94,
-                  level: 'safe',
-                  streetLightingIndex: 9.6,
-                  crimeRiskIndex: 1.2,
-                  activeSoloTravelers: 42,
-                  userReportsCount: 168,
-                  recommendedCurfew: 'Safe after 23:00 with standard awareness',
-                  notes: 'High police presence, well-lit embassies and artisan cafes.',
-                };
-                setSelectedZone(z as any);
-                setSelectedPOI(null);
-                setSelectedDriver(null);
-              }}
-              className="absolute top-[28%] left-[42%] w-36 h-28 rounded-2xl border-2 border-dashed border-emerald-500 bg-emerald-500/15 p-1.5 cursor-pointer hover:scale-105 transition flex flex-col justify-between z-10"
-            >
-              <div className="flex items-center justify-between text-[10px] font-bold text-emerald-400">
-                <span>{activeCity} Core</span>
-                <span className="bg-emerald-950/80 px-1 rounded text-[9px] font-mono">94/100</span>
-              </div>
-              <div className="text-[9px] text-emerald-300 flex items-center gap-1 font-semibold">
-                <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                <span>Verified Safe Zone</span>
-              </div>
-            </div>
-
-            {/* Caution Zone (e.g. Railway Terminal / unlit area) */}
-            <div
-              onClick={() => {
-                const z = safetyZones[2] || {
-                  zoneId: 'caution-zone',
-                  zoneName: `${activeCity} Transit Hub Alleys`,
-                  safetyScore: 62,
-                  level: 'caution',
-                  streetLightingIndex: 6.2,
-                  crimeRiskIndex: 5.5,
-                  activeSoloTravelers: 8,
-                  userReportsCount: 290,
-                  recommendedCurfew: 'Avoid unlit cross-streets post 19:30',
-                  notes: 'Crowded daytime hub, low evening lighting.',
-                };
-                setSelectedZone(z as any);
-                setSelectedPOI(null);
-                setSelectedDriver(null);
-              }}
-              className="absolute top-[8%] left-[60%] w-32 h-20 rounded-2xl border-2 border-dashed border-amber-500 bg-amber-500/15 p-1.5 cursor-pointer hover:scale-105 transition flex flex-col justify-between z-10"
-            >
-              <div className="flex items-center justify-between text-[10px] font-bold text-amber-400">
-                <span>Transit Terminus</span>
-                <span className="bg-amber-950/80 px-1 rounded text-[9px] font-mono">62/100</span>
-              </div>
-              <div className="text-[9px] text-amber-300 flex items-center gap-1 font-semibold">
-                <ShieldAlert className="w-3 h-3 text-amber-400" />
-                <span>Caution Area</span>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* POI MAP PINS (Police, Hospitals, Safe Cafes) */}
-        {showPOIs &&
-          pois.map((poi, idx) => {
-            const offsets = [
-              { top: '38%', left: '72%' },
-              { top: '68%', left: '32%' },
-              { top: '24%', left: '26%' },
-              { top: '56%', left: '62%' },
-              { top: '75%', left: '55%' },
-            ];
-            const pos = offsets[idx % offsets.length];
-            const badge = getPoiBadge(poi.category);
-
-            return (
-              <button
-                key={poi.poiId}
-                onClick={() => {
-                  setSelectedPOI(poi);
-                  setSelectedZone(null);
-                  setSelectedDriver(null);
-                }}
-                style={{ top: pos.top, left: pos.left }}
-                className="absolute -translate-x-1/2 -translate-y-1/2 z-20 group hover:scale-125 transition"
-                title={poi.name}
-              >
-                <div className={`p-1.5 rounded-full shadow-lg border-2 border-white text-white flex items-center justify-center ${badge.color}`}>
-                  <span className="text-[11px] leading-none">{badge.icon}</span>
-                </div>
-                <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-stone-900 border border-purple-800 text-stone-200 text-[10px] px-2 py-0.5 rounded-md shadow-xl whitespace-nowrap z-30">
-                  {poi.name}
-                </div>
-              </button>
-            );
-          })}
-
-        {/* HELAGO FEMALE DRIVER PINS */}
-        {showDrivers &&
-          helagoDrivers.map((driver, idx) => {
-            const driverPositions = [
-              { top: '46%', left: '28%' },
-              { top: '34%', left: '52%' },
-              { top: '65%', left: '76%' },
-            ];
-            const pos = driverPositions[idx % driverPositions.length];
-
-            return (
-              <button
-                key={driver.driverId}
-                onClick={() => {
-                  setSelectedDriver(driver);
-                  setSelectedZone(null);
-                  setSelectedPOI(null);
-                }}
-                style={{ top: pos.top, left: pos.left }}
-                className="absolute -translate-x-1/2 -translate-y-1/2 z-20 group hover:scale-125 transition"
-              >
-                <div className="p-1.5 rounded-full bg-gradient-to-tr from-purple-700 to-fuchsia-600 border-2 border-white shadow-xl text-white flex items-center justify-center">
-                  <Car className="w-3.5 h-3.5" />
-                </div>
-                <div className="bg-purple-950/90 border border-purple-400 text-purple-200 text-[9px] font-bold px-1.5 py-0.5 rounded shadow mt-0.5 whitespace-nowrap">
-                  {driver.name.split(' ')[0]} ({driver.etaMinutes}m)
-                </div>
-              </button>
-            );
-          })}
-
-        {/* Recenter Crosshair */}
+      {/* 2. FILTER CHIPS HORIZONTAL ROW (Matching Screenshot 2) */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+        {/* Safety Heatmap Toggle */}
         <button
-          onClick={() => {
-            setSelectedZone(null);
-            setSelectedPOI(null);
-            setSelectedDriver(null);
-          }}
-          className={`absolute bottom-3 right-3 z-30 p-2 rounded-2xl border shadow-lg active:scale-95 transition ${
-            isDark ? 'bg-stone-900/90 border-purple-900 text-purple-300' : 'bg-white border-purple-200 text-purple-700'
+          onClick={() => setShowHeatmap(!showHeatmap)}
+          className={`px-3 py-1.5 rounded-xl border text-xs font-bold shrink-0 transition flex items-center gap-1.5 ${
+            showHeatmap
+              ? 'bg-purple-700 text-white border-purple-500 shadow-xs'
+              : isDark
+              ? 'bg-stone-900 border-purple-900/40 text-purple-300'
+              : 'bg-white border-purple-200 text-purple-900'
           }`}
-          title="Recenter Map View"
         >
-          <Crosshair className="w-4 h-4" />
+          <Layers className="w-3.5 h-3.5" />
+          <span>Safety Heatmap</span>
+        </button>
+
+        {/* Filters Button */}
+        <button
+          onClick={() => setActiveCategory('all')}
+          className={`px-3 py-1.5 rounded-xl border text-xs font-bold shrink-0 transition ${
+            activeCategory === 'all'
+              ? 'bg-purple-600 text-white border-purple-400'
+              : isDark
+              ? 'bg-stone-900 border-purple-900/40 text-stone-300'
+              : 'bg-white border-purple-200 text-stone-700'
+          }`}
+        >
+          Filters
+        </button>
+
+        {/* Safe Cafes */}
+        <button
+          onClick={() => setActiveCategory(activeCategory === 'safe_cafes' ? 'all' : 'safe_cafes')}
+          className={`px-3 py-1.5 rounded-xl border text-xs font-semibold shrink-0 transition flex items-center gap-1.5 ${
+            activeCategory === 'safe_cafes'
+              ? 'bg-amber-600 text-white border-amber-400'
+              : isDark
+              ? 'bg-stone-900/80 border-stone-800 text-amber-300'
+              : 'bg-white border-stone-200 text-stone-800'
+          }`}
+        >
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+          <span>Safe cafes</span>
+        </button>
+
+        {/* Hospitals / 24 Hour Medical */}
+        <button
+          onClick={() => setActiveCategory(activeCategory === 'hospitals' ? 'all' : 'hospitals')}
+          className={`px-3 py-1.5 rounded-xl border text-xs font-semibold shrink-0 transition flex items-center gap-1.5 ${
+            activeCategory === 'hospitals'
+              ? 'bg-rose-600 text-white border-rose-400'
+              : isDark
+              ? 'bg-stone-900/80 border-stone-800 text-rose-300'
+              : 'bg-white border-stone-200 text-stone-800'
+          }`}
+        >
+          <div className="w-2.5 h-2.5 rounded-full bg-rose-500 flex items-center justify-center text-[8px] text-white font-black">
+            +
+          </div>
+          <span>Hospitals / 24hr</span>
+        </button>
+
+        {/* Police / Tourist Police */}
+        <button
+          onClick={() => setActiveCategory(activeCategory === 'police' ? 'all' : 'police')}
+          className={`px-3 py-1.5 rounded-xl border text-xs font-semibold shrink-0 transition flex items-center gap-1.5 ${
+            activeCategory === 'police'
+              ? 'bg-blue-600 text-white border-blue-400'
+              : isDark
+              ? 'bg-stone-900/80 border-stone-800 text-blue-300'
+              : 'bg-white border-stone-200 text-stone-800'
+          }`}
+        >
+          <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+          <span>Police / Tourist Police</span>
+        </button>
+
+        {/* Clean Restrooms */}
+        <button
+          onClick={() => setActiveCategory(activeCategory === 'restrooms' ? 'all' : 'restrooms')}
+          className={`px-3 py-1.5 rounded-xl border text-xs font-semibold shrink-0 transition flex items-center gap-1.5 ${
+            activeCategory === 'restrooms'
+              ? 'bg-teal-600 text-white border-teal-400'
+              : isDark
+              ? 'bg-stone-900/80 border-stone-800 text-teal-300'
+              : 'bg-white border-stone-200 text-stone-800'
+          }`}
+        >
+          <div className="w-2.5 h-2.5 rounded-full bg-teal-500" />
+          <span>Clean Restrooms</span>
+        </button>
+
+        {/* Pharmacies / Period Hygiene */}
+        <button
+          onClick={() => setActiveCategory(activeCategory === 'pharmacies' ? 'all' : 'pharmacies')}
+          className={`px-3 py-1.5 rounded-xl border text-xs font-semibold shrink-0 transition flex items-center gap-1.5 ${
+            activeCategory === 'pharmacies'
+              ? 'bg-emerald-600 text-white border-emerald-400'
+              : isDark
+              ? 'bg-stone-900/80 border-stone-800 text-emerald-300'
+              : 'bg-white border-stone-200 text-stone-800'
+          }`}
+        >
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+          <span>Pharmacies / Period Hygiene</span>
         </button>
       </div>
 
-      {/* 3. INTERACTIVE POI / ZONE DETAILS BOTTOM DRAWER */}
+      {/* 3. DYNAMIC GOOGLE MAPS STYLE VIEW (Matching Screenshot 2) */}
+      <div className={`relative h-72 sm:h-80 w-full rounded-3xl overflow-hidden border shadow-lg ${
+        isDark ? 'border-purple-800/40 bg-[#121622]' : 'border-purple-100 bg-[#e5e9f0]'
+      }`}>
+        {/* Realistic SVG Vector Map with Kandy road names: Kalapura Rd, Nattarampota, Kundasale, Gonawala */}
+        <svg className="w-full h-full" viewBox="0 0 400 300" preserveAspectRatio="none">
+          {/* River / Waterbody (Mahaweli River curve) */}
+          <path
+            d="M 0 140 Q 150 170 230 130 T 400 110"
+            fill="none"
+            stroke="#a5c9eb"
+            strokeWidth="18"
+            className="opacity-70 dark:opacity-40"
+          />
 
-      {/* A. Selected Safe Cafe or Place Card */}
-      {selectedPOI && (
-        <div className={`p-4 rounded-3xl border space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-150 ${
-          isDark ? 'bg-[#150f24] border-purple-900/50' : 'bg-white border-purple-100 shadow-lg'
+          {/* Road Network */}
+          {/* Main Highway */}
+          <path d="M 30 20 L 120 120 L 260 170 L 380 220" fill="none" stroke="#ffffff" strokeWidth="6" className="dark:stroke-stone-700" />
+          <path d="M 30 20 L 120 120 L 260 170 L 380 220" fill="none" stroke="#f6d365" strokeWidth="3" />
+
+          {/* Kalapura Road */}
+          <path d="M 120 40 L 110 240" fill="none" stroke="#ffffff" strokeWidth="5" className="dark:stroke-stone-700" />
+          <path d="M 120 40 L 110 240" fill="none" stroke="#ffd166" strokeWidth="2.5" />
+
+          {/* Secondary Crossroads */}
+          <path d="M 20 80 Q 180 90 380 70" fill="none" stroke="#ffffff" strokeWidth="4" className="dark:stroke-stone-800" />
+          <path d="M 80 180 Q 240 190 390 160" fill="none" stroke="#ffffff" strokeWidth="4" className="dark:stroke-stone-800" />
+
+          {/* Street Labels */}
+          <text x="75" y="110" fill="#64748b" fontSize="8" fontWeight="bold" transform="rotate(-75 75 110)">
+            Kalapura Rd
+          </text>
+          <text x="65" y="155" fill="#334155" fontSize="13" fontWeight="bold" className="dark:fill-stone-300">
+            Nattarampota
+          </text>
+          <text x="270" y="155" fill="#334155" fontSize="13" fontWeight="bold" className="dark:fill-stone-300">
+            Kundasale
+          </text>
+
+          {/* POLYGON 1: Verified Safe Zone (Green Dashed Outline) */}
+          <g
+            onClick={() => {
+              const zone = mockSafetyZones.find((z) => z.zoneId === 'zn-kandy-nattarampota') || mockSafetyZones[1];
+              setSelectedZone(zone);
+              setSelectedPOI(null);
+            }}
+            className="cursor-pointer"
+          >
+            <polygon
+              points="90,140 215,140 210,205 95,200"
+              fill="#10b981"
+              fillOpacity="0.15"
+              stroke="#059669"
+              strokeWidth="2.5"
+              strokeDasharray="5,4"
+            />
+          </g>
+
+          {/* POLYGON 2: Caution Area 62/100 (Orange/Red Dashed Outline around Gonawala) */}
+          <g
+            onClick={() => {
+              setSelectedZone(mockSafetyZones[0]);
+              setSelectedPOI(null);
+            }}
+            className="cursor-pointer"
+          >
+            <polygon
+              points="180,50 265,50 260,110 185,105"
+              fill="#f59e0b"
+              fillOpacity="0.2"
+              stroke="#ea580c"
+              strokeWidth="2.5"
+              strokeDasharray="5,4"
+            />
+          </g>
+        </svg>
+
+        {/* Overlay Interactive Badges on Map */}
+        {/* Caution Area 62/100 badge */}
+        <div
+          onClick={() => {
+            setSelectedZone(mockSafetyZones[0]);
+            setSelectedPOI(null);
+          }}
+          className="absolute top-14 left-[50%] -translate-x-1/2 bg-amber-500/90 hover:bg-amber-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md cursor-pointer border border-white/40 flex items-center gap-1 active:scale-95 transition"
+        >
+          <AlertTriangle className="w-2.5 h-2.5" />
+          <span>Caution Area 62/100</span>
+        </div>
+
+        {/* Verified Safe Zone badge */}
+        <div
+          onClick={() => {
+            const zone = mockSafetyZones.find((z) => z.zoneId === 'zn-kandy-nattarampota') || mockSafetyZones[1];
+            setSelectedZone(zone);
+            setSelectedPOI(null);
+          }}
+          className="absolute bottom-28 left-28 bg-emerald-600/90 hover:bg-emerald-700 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md cursor-pointer border border-white/40 flex items-center gap-1 active:scale-95 transition"
+        >
+          <ShieldCheck className="w-2.5 h-2.5" />
+          <span>Verified Safe Zone</span>
+        </div>
+
+        {/* Custom POI Pin Markers matching Screenshot 2 */}
+        {/* Red Cross Hospital Pin 1 */}
+        <button
+          onClick={() => {
+            const poi = mockDynamicPOIs.find((p) => p.poiId === 'poi-med-kandy-01') || mockDynamicPOIs[2];
+            setSelectedPOI(poi);
+          }}
+          className="absolute top-10 left-20 w-6 h-6 rounded-full bg-white border-2 border-rose-500 text-rose-600 font-bold text-xs flex items-center justify-center shadow-md hover:scale-110 transition cursor-pointer"
+          title="Hospital / 24hr Clinic"
+        >
+          +
+        </button>
+
+        {/* Orange Safe Cafe Pin */}
+        <button
+          onClick={() => {
+            const poi = mockDynamicPOIs.find((p) => p.category === 'safe_cafe') || mockDynamicPOIs[4];
+            setSelectedPOI(poi);
+          }}
+          className="absolute top-14 left-36 w-6 h-6 rounded-full bg-amber-500 border-2 border-white text-white flex items-center justify-center shadow-md hover:scale-110 transition cursor-pointer"
+          title="Safe Cafe"
+        >
+          ☕
+        </button>
+
+        {/* Red Cross Hospital Pin 2 */}
+        <button
+          onClick={() => {
+            const poi = mockDynamicPOIs.find((p) => p.poiId === 'poi-med-kundasale') || mockDynamicPOIs[3];
+            setSelectedPOI(poi);
+          }}
+          className="absolute top-20 right-12 w-6 h-6 rounded-full bg-white border-2 border-rose-500 text-rose-600 font-bold text-xs flex items-center justify-center shadow-md hover:scale-110 transition cursor-pointer"
+        >
+          +
+        </button>
+
+        {/* Blue Police Pin */}
+        <button
+          onClick={() => {
+            const poi = mockDynamicPOIs.find((p) => p.category === 'tourist_police') || mockDynamicPOIs[0];
+            setSelectedPOI(poi);
+          }}
+          className="absolute top-16 right-24 w-6 h-6 rounded-full bg-blue-600 border-2 border-white text-white flex items-center justify-center shadow-md hover:scale-110 transition cursor-pointer"
+          title="Police / Tourist Police"
+        >
+          🛡️
+        </button>
+
+        {/* Green Pharmacy Pin */}
+        <button
+          onClick={() => {
+            const poi = mockDynamicPOIs.find((p) => p.category === 'pharmacy') || mockDynamicPOIs[3];
+            setSelectedPOI(poi);
+          }}
+          className="absolute top-24 right-36 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white text-white flex items-center justify-center shadow-md hover:scale-110 transition cursor-pointer"
+          title="Pharmacy / Period Hygiene"
+        >
+          💊
+        </button>
+
+        {/* Teal Restroom Pin */}
+        <button
+          onClick={() => {
+            const poi = mockDynamicPOIs.find((p) => p.category === 'restroom') || mockDynamicPOIs[5];
+            setSelectedPOI(poi);
+          }}
+          className="absolute top-24 right-4 w-6 h-6 rounded-full bg-teal-500 border-2 border-white text-white flex items-center justify-center shadow-md hover:scale-110 transition cursor-pointer"
+          title="Clean Restroom"
+        >
+          🚻
+        </button>
+
+        {/* User Current Location Indicator (Purple avatar dot) */}
+        <div className="absolute top-20 left-32 w-8 h-8 rounded-full bg-purple-600/30 border-2 border-purple-500 flex items-center justify-center animate-pulse">
+          <div className="w-4 h-4 rounded-full bg-purple-600 border border-white" />
+        </div>
+
+        {/* Bottom Right Map Controls */}
+        <div className="absolute bottom-3 right-3 flex flex-col gap-1.5">
+          <button className="w-7 h-7 rounded-lg bg-black/70 hover:bg-black text-white flex items-center justify-center shadow-md backdrop-blur-xs">
+            <Maximize2 className="w-3.5 h-3.5" />
+          </button>
+          <button className="w-7 h-7 rounded-lg bg-black/70 hover:bg-black text-white flex items-center justify-center shadow-md backdrop-blur-xs">
+            <Crosshair className="w-3.5 h-3.5 text-purple-400" />
+          </button>
+        </div>
+      </div>
+
+      {/* 4. DOWNLOAD OFFLINE VECTOR MAP BANNER (Matching Screenshot 2) */}
+      <div className="rounded-2xl bg-black/90 border border-purple-800/40 p-3.5 text-white flex items-center justify-between gap-3 shadow-md">
+        <div>
+          <h4 className="font-extrabold text-xs text-white">
+            Download Offline Vector Map (Sri Lanka)
+          </h4>
+          <p className="text-[10px] text-purple-200/70 mt-0.5">
+            High-res offline GPS navigation & safe zone overlays (140 MB)
+          </p>
+        </div>
+
+        <button
+          onClick={onTriggerUpgradePrompt}
+          className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-[11px] px-3.5 py-2 rounded-xl flex items-center gap-1.5 shrink-0 shadow-sm active:scale-95 transition"
+        >
+          <Download className="w-3 h-3" />
+          <span>Download (Premium)</span>
+        </button>
+      </div>
+
+      {/* 5. SELECTED AREA / POI DETAILS CARD (Matching Screenshot 2: Gonawala Town Area) */}
+      {selectedPOI ? (
+        /* Selected POI Details Card */
+        <div className={`rounded-2xl border p-4 shadow-md transition-all ${
+          isDark ? 'bg-[#150a28] border-purple-800/50 text-white' : 'bg-white border-purple-100 text-stone-900'
         }`}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              {selectedPOI.image && (
-                <img
-                  src={selectedPOI.image}
-                  alt={selectedPOI.name}
-                  className="w-16 h-16 rounded-2xl object-cover border border-purple-500/30"
-                />
-              )}
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xs sm:text-sm font-bold">{selectedPOI.name}</h3>
-                  {selectedPOI.isVerifiedLocalBusiness && (
-                    <span className="bg-purple-500/20 text-purple-700 dark:text-purple-300 text-[10px] px-1.5 py-0.2 rounded-full font-bold border border-purple-500/30">
-                      ✓ Verified Local Business
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">{selectedPOI.address}</p>
-                <div className="flex items-center gap-2 mt-1 text-[11px]">
-                  <span className="text-amber-500 font-bold flex items-center gap-0.5">
-                    <Star className="w-3 h-3 fill-amber-500" /> {selectedPOI.rating}
-                  </span>
-                  <span className="text-stone-400 font-mono">({selectedPOI.reviewsCount} verified reviews)</span>
-                  {selectedPOI.open24Hours ? (
-                    <span className="text-emerald-500 font-bold">· 24/7 Open</span>
-                  ) : (
-                    <span className="text-stone-400">· {selectedPOI.operatingHours}</span>
-                  )}
-                </div>
-              </div>
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-purple-500">
+                Verified Map Landmark
+              </span>
+              <h3 className="font-extrabold text-sm sm:text-base text-stone-900 dark:text-white">
+                {selectedPOI.name}
+              </h3>
+              <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5 flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-purple-400" /> {selectedPOI.address}
+              </p>
             </div>
+            <div className="flex items-center gap-1 bg-amber-500/20 text-amber-500 px-2 py-1 rounded-lg text-xs font-bold shrink-0">
+              <Star className="w-3 h-3 fill-amber-500" />
+              <span>{selectedPOI.rating}</span>
+            </div>
+          </div>
 
-            <button onClick={() => setSelectedPOI(null)} className="p-1 text-stone-400 hover:text-stone-200">
-              <X className="w-4 h-4" />
+          <div className="flex flex-wrap gap-1.5 my-2.5">
+            {selectedPOI.safetyFeatures.map((f, i) => (
+              <span
+                key={i}
+                className="text-[10px] bg-purple-950/40 border border-purple-800/40 text-purple-300 px-2 py-0.5 rounded-md font-medium"
+              >
+                ✓ {f}
+              </span>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between border-t border-purple-900/30 pt-2 mt-2">
+            <span className="text-[11px] text-stone-600 dark:text-stone-300">
+              {selectedPOI.open24Hours ? 'Open 24 Hours' : selectedPOI.operatingHours}
+            </span>
+            <button
+              onClick={() => onAskSerenaAI(`Tell me about the safety and reviews for ${selectedPOI.name} in Kandy.`)}
+              className="text-xs text-purple-600 dark:text-purple-300 font-bold hover:underline flex items-center gap-1"
+            >
+              Ask Serena AI →
             </button>
           </div>
-
-          {/* Safety Verifications */}
-          <div className="space-y-1">
-            <div className="text-[11px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
-              Safety Amenities & Audits:
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {selectedPOI.safetyFeatures.map((feat, i) => (
-                <span
-                  key={i}
-                  className={`text-[10px] px-2 py-0.5 rounded-lg border font-medium ${
-                    isDark ? 'bg-stone-900 border-purple-900/40 text-stone-300' : 'bg-purple-50 border-purple-200 text-purple-900'
-                  }`}
-                >
-                  ✓ {feat}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex gap-2 pt-1">
-            {selectedPOI.phone && (
-              <a
-                href={`tel:${selectedPOI.phone}`}
-                className="px-3 py-2 rounded-xl border border-purple-600/40 text-purple-600 dark:text-purple-300 text-xs font-bold flex items-center gap-1.5"
-              >
-                <Phone className="w-3.5 h-3.5" />
-                <span>Call Venue</span>
-              </a>
-            )}
-            <a
-              href={`https://maps.google.com/?q=${selectedPOI.coordinates.lat},${selectedPOI.coordinates.lng}`}
-              target="_blank"
-              rel="noreferrer"
-              className="flex-1 py-2 rounded-xl bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs"
-            >
-              <Navigation className="w-3.5 h-3.5" />
-              <span>Get Walking Route</span>
-            </a>
-          </div>
         </div>
-      )}
-
-      {/* B. Selected Safety Zone Card */}
-      {selectedZone && (
-        <div className={`p-4 rounded-3xl border space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-150 ${
-          isDark ? 'bg-[#150f24] border-purple-900/50' : 'bg-white border-purple-100 shadow-lg'
+      ) : (
+        /* Selected Zone Card (Screenshot 2: Gonawala Town Area 62/100) */
+        <div className={`rounded-2xl border p-4 shadow-md transition-all ${
+          isDark ? 'bg-[#150a28] border-purple-800/50 text-white' : 'bg-white border-purple-100 text-stone-900'
         }`}>
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className={`w-2.5 h-2.5 rounded-full ${selectedZone.level === 'safe' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                <h3 className="text-sm font-bold">{selectedZone.zoneName}</h3>
-              </div>
-              <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">{selectedZone.notes}</p>
+          <div className="flex items-start justify-between gap-2 mb-1.5">
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${
+                selectedZone.level === 'safe' ? 'bg-emerald-500' : 'bg-amber-500'
+              }`} />
+              <h3 className="font-extrabold text-sm sm:text-base text-stone-900 dark:text-white">
+                {selectedZone.zoneName}
+              </h3>
             </div>
+
             <div className="text-right">
-              <span className={`text-base font-black font-mono ${selectedZone.level === 'safe' ? 'text-emerald-500' : 'text-amber-500'}`}>
-                {selectedZone.safetyScore}/100
+              <div className="flex items-baseline justify-end gap-1">
+                <span className={`text-base font-black ${
+                  selectedZone.safetyScore >= 80 ? 'text-emerald-500' : 'text-amber-500'
+                }`}>
+                  {selectedZone.safetyScore}/100
+                </span>
+              </div>
+              <span className="text-[9px] uppercase tracking-wider text-purple-400 font-bold block">
+                SAFETY INDEX
               </span>
-              <div className="text-[9px] text-stone-400 uppercase font-bold">Safety Index</div>
             </div>
           </div>
 
-          <div className={`grid grid-cols-3 gap-2 p-2.5 rounded-2xl border text-center text-xs ${
-            isDark ? 'bg-stone-950/70 border-purple-900/30' : 'bg-purple-50/60 border-purple-100'
-          }`}>
+          <p className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed mb-3">
+            {selectedZone.recommendedCurfew}
+          </p>
+
+          {/* 3 Metric Pills matching Screenshot 2 */}
+          <div className="grid grid-cols-3 gap-2 text-center py-2 border-y border-purple-900/30 mb-3">
             <div>
-              <div className="font-bold">{selectedZone.streetLightingIndex}/10</div>
-              <div className="text-[10px] text-stone-400">Street Lighting</div>
+              <span className="text-xs font-black text-stone-900 dark:text-white block">
+                {selectedZone.streetLightingIndex}/10
+              </span>
+              <span className="text-[9px] text-purple-300/80 font-medium">
+                Street Lighting
+              </span>
             </div>
             <div>
-              <div className="font-bold">{selectedZone.activeSoloTravelers}</div>
-              <div className="text-[10px] text-stone-400">Solo Travelers</div>
+              <span className="text-xs font-black text-stone-900 dark:text-white block">
+                {selectedZone.activeSoloTravelers}
+              </span>
+              <span className="text-[9px] text-purple-300/80 font-medium">
+                Solo Travelers
+              </span>
             </div>
             <div>
-              <div className="font-bold">{selectedZone.userReportsCount}</div>
-              <div className="text-[10px] text-stone-400">Verified Reports</div>
+              <span className="text-xs font-black text-stone-900 dark:text-white block">
+                {selectedZone.userReportsCount}
+              </span>
+              <span className="text-[9px] text-purple-300/80 font-medium">
+                Verified Reports
+              </span>
             </div>
           </div>
 
           <button
-            onClick={() => onOpenAssistantWithLocation(selectedZone.zoneName)}
-            className="w-full py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-700 dark:text-purple-300 text-xs font-bold transition flex items-center justify-center gap-1.5"
+            onClick={() => onAskSerenaAI(`What is the recommended night curfew and safe transport advice in ${selectedZone.zoneName}?`)}
+            className="w-full text-center text-xs font-bold text-purple-600 dark:text-purple-300 hover:text-purple-400 py-1.5 rounded-xl border border-purple-500/30 bg-purple-950/30 hover:bg-purple-950/60 transition"
           >
-            <span>Ask Serena AI About Night Curfew in this Area →</span>
+            Ask Serena AI About Night Curfew in this Area →
           </button>
         </div>
       )}
 
-      {/* C. Selected HelaGo Driver Card */}
-      {selectedDriver && (
-        <div className={`p-4 rounded-3xl border space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-150 ${
-          isDark ? 'bg-[#150f24] border-purple-600/50' : 'bg-white border-purple-300 shadow-xl'
-        }`}>
-          <div className="flex items-center gap-3">
-            <img
-              src={selectedDriver.driverImage}
-              alt={selectedDriver.name}
-              className="w-12 h-12 rounded-full object-cover border-2 border-purple-600"
-            />
-            <div className="flex-1">
-              <div className="flex items-center gap-1.5">
-                <h3 className="text-sm font-bold">{selectedDriver.name}</h3>
-                <span className="bg-purple-500/20 text-purple-700 dark:text-purple-300 text-[10px] px-1.5 py-0.2 rounded font-bold border border-purple-500/30">
-                  Pink Shield ★
-                </span>
-              </div>
-              <p className="text-xs text-stone-500 dark:text-stone-400">
-                {selectedDriver.vehicleModel} · <span className="font-mono">{selectedDriver.licensePlate}</span>
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-sm font-bold text-purple-600 dark:text-purple-400">{selectedDriver.etaMinutes}m away</div>
-              <div className="text-[10px] text-stone-400">{selectedDriver.totalRides} trips</div>
-            </div>
-          </div>
-
-          <div className={`flex items-center justify-between p-2.5 rounded-2xl border text-xs ${
-            isDark ? 'bg-stone-950 border-stone-800' : 'bg-purple-50 border-purple-100'
-          }`}>
-            <div>
-              <div className="text-[10px] text-stone-400">Estimated Metered Fare</div>
-              <div className="font-bold font-mono">LKR {selectedDriver.fareEstimate.toLocaleString()}</div>
-            </div>
-            <div className="text-right">
-              <div className="text-[10px] text-stone-400">12% Platform Fee</div>
-              <div className="text-purple-600 dark:text-purple-400 font-mono text-[11px] font-bold">
-                LKR {Math.round(selectedDriver.fareEstimate * 0.12)}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => onBookDriver(selectedDriver)}
-              className="flex-1 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold shadow-md transition flex items-center justify-center gap-1.5"
-            >
-              <Car className="w-4 h-4" />
-              <span>Confirm HelaGo Driver Booking</span>
-            </button>
-            <button
-              onClick={() => setSelectedDriver(null)}
-              className="px-3 py-2 rounded-xl border border-stone-700 text-xs text-stone-400"
-            >
-              Cancel
-            </button>
-          </div>
+      {/* 6. "THINGS TO DO..." SECTION (Matching Screenshot 2 & TripAdvisor Layout) */}
+      <div className="mt-2">
+        <div className="flex items-center justify-between mb-2 px-1">
+          <h3 className="text-base sm:text-lg font-black text-stone-900 dark:text-white">
+            Things To Do...
+          </h3>
+          <span className="text-xs text-purple-600 dark:text-purple-400 font-bold">
+            TripAdvisor Guides (5)
+          </span>
         </div>
-      )}
+
+        {/* Featured Article 1 (Matches Screenshot 2: Hiking the Hanthana Mountain Range) */}
+        {mockAreaArticles[0] && (
+          <div
+            onClick={() => setSelectedArticle(mockAreaArticles[0])}
+            className="relative rounded-3xl overflow-hidden border border-purple-800/40 shadow-xl cursor-pointer group mb-3 transform active:scale-98 transition"
+          >
+            <div className="h-52 sm:h-60 w-full overflow-hidden bg-stone-900">
+              <img
+                src={mockAreaArticles[0].heroImage}
+                alt={mockAreaArticles[0].title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+            </div>
+
+            <div className="absolute bottom-4 left-4 right-4 text-white">
+              <span className="text-[10px] bg-purple-600 text-white font-bold px-2.5 py-0.5 rounded-md inline-block mb-1 shadow-sm">
+                Top Rated Hike · Kandy
+              </span>
+              <h4 className="text-lg sm:text-xl font-black leading-tight drop-shadow-md">
+                {mockAreaArticles[0].title}
+              </h4>
+              <p className="text-xs text-purple-200 mt-0.5 drop-shadow-sm">
+                All You Should Know
+              </p>
+              <div className="flex items-center gap-3 mt-2 text-[11px] text-purple-200/90 font-medium">
+                <span className="flex items-center gap-1">
+                  <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> {mockAreaArticles[0].rating} ({mockAreaArticles[0].reviewsCount})
+                </span>
+                <span>• {mockAreaArticles[0].duration}</span>
+                <span>• {mockAreaArticles[0].difficulty}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 4 Other TripAdvisor Style Article Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {mockAreaArticles.slice(1).map((art) => (
+            <div
+              key={art.id}
+              onClick={() => setSelectedArticle(art)}
+              className={`rounded-2xl border p-3 flex gap-3 cursor-pointer shadow-md transition transform active:scale-98 group ${
+                isDark
+                  ? 'bg-[#150a28] border-purple-800/40 hover:border-purple-600 text-white'
+                  : 'bg-white border-purple-100 hover:border-purple-300 text-stone-900'
+              }`}
+            >
+              <img
+                src={art.heroImage}
+                alt={art.title}
+                className="w-20 h-20 rounded-xl object-cover shrink-0 border border-purple-900/30 group-hover:scale-105 transition-transform"
+              />
+              <div className="flex flex-col justify-between flex-1">
+                <div>
+                  <span className="text-[9px] uppercase font-bold text-purple-500 tracking-wider">
+                    {art.category}
+                  </span>
+                  <h5 className="font-extrabold text-xs leading-snug line-clamp-2 text-stone-900 dark:text-white">
+                    {art.title}
+                  </h5>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-stone-500 dark:text-stone-400 mt-1">
+                  <div className="flex items-center gap-1 text-amber-500 font-bold">
+                    <Star className="w-2.5 h-2.5 fill-amber-500" />
+                    <span>{art.rating}</span>
+                  </div>
+                  <span>{art.duration}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* TripAdvisor Article Detail Modal */}
+      <ArticleDetailModal
+        article={selectedArticle}
+        onClose={() => setSelectedArticle(null)}
+        onAskSerena={onAskSerenaAI}
+        theme={theme}
+      />
     </div>
   );
 };

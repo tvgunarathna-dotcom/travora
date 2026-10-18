@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   ShieldCheck,
   ShieldAlert,
@@ -6,6 +6,7 @@ import {
   MessageCircle,
   MapPin,
   Calendar,
+  Clock,
   Globe,
   Sparkles,
   Send,
@@ -18,118 +19,179 @@ import {
   DollarSign,
   Car,
   X,
+  Edit2,
+  Trash2,
+  Star,
+  CheckCircle,
+  Compass,
 } from 'lucide-react';
-import { UserProfile, TravelBuddy, CommunityPost, ChatMessage } from '../../types';
-import { verifiedTravelBuddies, mockCommunityPosts } from '../../data/mockData';
-import { apiService } from '../../services/api';
+import { UserProfile, TravelBuddy, CommunityPost, ChatMessage, TravelGuide } from '../../types';
+import { verifiedTravelBuddies, mockCommunityPosts, mockTravelGuides } from '../../data/mockData';
 
 interface BuddyFeedScreenProps {
   user: UserProfile;
   onOpenVerification: () => void;
+  onBookGuide?: (guide: TravelGuide) => void;
   theme: 'dark' | 'light';
 }
 
 export const BuddyFeedScreen: React.FC<BuddyFeedScreenProps> = ({
   user,
   onOpenVerification,
+  onBookGuide,
   theme,
 }) => {
   const isDark = theme === 'dark';
 
-  // Sub-tabs: 'posts' (Community Buddy Requests) vs 'travelers' (Verified Directory)
-  const [subTab, setSubTab] = useState<'posts' | 'travelers'>('posts');
-  
+  // Section Selector matching Screenshot 5:
+  // 'guides' -> Screenshot 6 (Verified Female Travel Guides)
+  // 'buddies' -> Screenshot 7 (Community Travel Buddy Network)
+  const [activeSection, setActiveSection] = useState<'buddies' | 'guides'>('buddies');
+
+  // Sub-tabs under buddies: 'posts' (Buddy Requests) vs 'travelers' (Traveler Directory)
+  const [buddySubTab, setBuddySubTab] = useState<'posts' | 'travelers'>('posts');
+
   // Search & Filter state
   const [filterCity, setFilterCity] = useState<string>('all');
   const [filterBudget, setFilterBudget] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Community Posts
+  // Community Posts (Supports edit and delete)
   const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>(mockCommunityPosts);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showPostModal, setShowPostModal] = useState(false);
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
 
-  // New Post Form
-  const [postTitle, setPostTitle] = useState('');
-  const [postDestination, setPostDestination] = useState('Galle & Mirissa');
-  const [postStartDate, setPostStartDate] = useState('2026-10-18');
-  const [postEndDate, setPostEndDate] = useState('2026-10-21');
-  const [postBudget, setPostBudget] = useState<'$' | '$$' | '$$$'>('$$');
-  const [postTransport, setPostTransport] = useState<'HelaGo Cab' | 'Train' | 'Tuk-Tuk' | 'Shared Van' | 'Walking'>('HelaGo Cab');
-  const [postDetails, setPostDetails] = useState('');
+  // Post Request Form State (with Calendar & Clock pickers)
+  const [formTitle, setFormTitle] = useState('');
+  const [formDestination, setFormDestination] = useState('Kandy');
+  const [formStartDate, setFormStartDate] = useState('2026-10-20');
+  const [formEndDate, setFormEndDate] = useState('2026-10-22');
+  const [formStartTime, setFormStartTime] = useState('08:00');
+  const [formEndTime, setFormEndTime] = useState('17:00');
+  const [formBudget, setFormBudget] = useState<'$' | '$$' | '$$$'>('$$');
+  const [formTransport, setFormTransport] = useState<'HelaGo Cab' | 'Train' | 'Tuk-Tuk' | 'Shared Van' | 'Walking'>('HelaGo Cab');
+  const [formDetails, setFormDetails] = useState('');
 
-  // Chat State
-  const [selectedBuddy, setSelectedBuddy] = useState<TravelBuddy | null>(null);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      id: 'm1',
-      senderId: 'tb_elena',
-      text: 'Hey Maya! Are you still planning to take the HelaGo electric ride to Galle Fort tomorrow?',
-      timestamp: '09:12 AM',
-    },
-    {
-      id: 'm2',
-      senderId: 'usr_maya_colombo',
-      text: 'Yes! Sanduni P. is our Pink Shield verified driver. We can meet right outside Barefoot Cafe.',
-      timestamp: '09:14 AM',
-    },
-  ]);
-  const [newMessageText, setNewMessageText] = useState('');
+  // Direct Messaging Modal State
+  const [activeChatBuddy, setActiveChatBuddy] = useState<TravelBuddy | TravelGuide | null>(null);
+  const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({
+    tb_elena: [
+      {
+        id: 'm1',
+        senderId: 'tb_elena',
+        text: "Hi Piyumi! Saw your note on the Hanthana trail. Would love to split an electric HelaGo cab tomorrow morning!",
+        timestamp: '10:15 AM',
+      },
+    ],
+  });
+  const [inputMsg, setInputMsg] = useState('');
 
-  // Gated Access Check: Unverified travelers cannot view or message
-  if (!user.isVerified) {
-    return (
-      <div className={`p-6 rounded-3xl border text-center space-y-4 my-6 ${
-        isDark ? 'bg-[#150f24] border-purple-900/50' : 'bg-white border-purple-100 shadow-lg'
-      }`}>
-        <div className="w-14 h-14 rounded-full bg-purple-600/20 text-purple-600 dark:text-purple-300 flex items-center justify-center mx-auto">
-          <Lock className="w-7 h-7" />
-        </div>
-        <div className="space-y-1">
-          <h3 className="text-base font-bold">Gated AU10TIX Female Community</h3>
-          <p className="text-xs text-stone-500 dark:text-stone-400 max-w-sm mx-auto leading-relaxed">
-            Direct messaging and community travel buddy requests are strictly gated to travelers who have completed AU10TIX government passport and 3D optical liveness verification.
-          </p>
-        </div>
-
-        <button
-          onClick={onOpenVerification}
-          className="px-6 py-3 rounded-2xl bg-purple-700 hover:bg-purple-600 text-white font-bold text-xs shadow-md transition"
-        >
-          Verify Passport with AU10TIX (1 Min)
-        </button>
-      </div>
-    );
-  }
-
-  // Create post handler
-  const handleCreatePost = async () => {
-    if (!postTitle.trim() || !postDetails.trim()) return;
-
-    const newPost: CommunityPost = {
-      postId: `post_${Date.now()}`,
-      userId: user.id,
-      userName: user.name,
-      userAvatar: user.avatar,
-      isVerified: true,
-      destinationCity: postDestination,
-      startDate: postStartDate,
-      endDate: postEndDate,
-      budgetTier: postBudget,
-      transportMode: postTransport,
-      activityTitle: postTitle,
-      activityDetails: postDetails,
-      tags: ['VerifiedTraveler', postDestination.split(' ')[0]],
-      responsesCount: 0,
-      createdAt: 'Just now',
-    };
-
-    setCommunityPosts([newPost, ...communityPosts]);
-    setShowCreateModal(false);
-    setPostTitle('');
-    setPostDetails('');
+  // Open Create Modal
+  const handleOpenCreateModal = () => {
+    setEditingPostId(null);
+    setFormTitle('');
+    setFormDestination('Kandy');
+    setFormStartDate('2026-10-20');
+    setFormEndDate('2026-10-22');
+    setFormStartTime('08:00');
+    setFormEndTime('17:00');
+    setFormBudget('$$');
+    setFormTransport('HelaGo Cab');
+    setFormDetails('');
+    setShowPostModal(true);
   };
 
-  // Filter posts
+  // Open Edit Modal
+  const handleOpenEditModal = (post: CommunityPost) => {
+    setEditingPostId(post.postId);
+    setFormTitle(post.activityTitle);
+    setFormDestination(post.destinationCity);
+    setFormStartDate(post.startDate);
+    setFormEndDate(post.endDate);
+    setFormStartTime(post.startTime || '08:00');
+    setFormEndTime(post.endTime || '17:00');
+    setFormBudget(post.budgetTier);
+    setFormTransport(post.transportMode);
+    setFormDetails(post.activityDetails);
+    setShowPostModal(true);
+  };
+
+  // Delete Request
+  const handleDeletePost = (postId: string) => {
+    if (window.confirm('Are you sure you want to delete this travel buddy request?')) {
+      setCommunityPosts((prev) => prev.filter((p) => p.postId !== postId));
+    }
+  };
+
+  // Save / Submit Post (Create or Update)
+  const handleSavePost = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formTitle.trim()) return;
+
+    if (editingPostId) {
+      // Update
+      setCommunityPosts((prev) =>
+        prev.map((p) =>
+          p.postId === editingPostId
+            ? {
+                ...p,
+                activityTitle: formTitle,
+                destinationCity: formDestination,
+                startDate: formStartDate,
+                endDate: formEndDate,
+                startTime: formStartTime,
+                endTime: formEndTime,
+                budgetTier: formBudget,
+                transportMode: formTransport,
+                activityDetails: formDetails,
+              }
+            : p
+        )
+      );
+    } else {
+      // Create new
+      const newPost: CommunityPost = {
+        postId: `post_${Date.now()}`,
+        userId: user.id,
+        userName: user.name,
+        userAvatar: user.avatar,
+        isVerified: true,
+        destinationCity: formDestination,
+        startDate: formStartDate,
+        endDate: formEndDate,
+        startTime: formStartTime,
+        endTime: formEndTime,
+        budgetTier: formBudget,
+        transportMode: formTransport,
+        activityTitle: formTitle,
+        activityDetails: formDetails || 'Looking for verified female travel companions to explore safely together.',
+        tags: ['VerifiedBuddy', 'SafeMeetup'],
+        responsesCount: 0,
+        createdAt: 'Just now',
+      };
+      setCommunityPosts([newPost, ...communityPosts]);
+    }
+
+    setShowPostModal(false);
+  };
+
+  const handleSendMessage = () => {
+    if (!inputMsg.trim() || !activeChatBuddy) return;
+    const buddyId = 'id' in activeChatBuddy ? activeChatBuddy.id : activeChatBuddy.guideId;
+    const newMsg: ChatMessage = {
+      id: `msg_${Date.now()}`,
+      senderId: user.id,
+      text: inputMsg.trim(),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setChatMessages((prev) => ({
+      ...prev,
+      [buddyId]: [...(prev[buddyId] || []), newMsg],
+    }));
+    setInputMsg('');
+  };
+
   const filteredPosts = communityPosts.filter((post) => {
     if (filterCity !== 'all' && !post.destinationCity.toLowerCase().includes(filterCity.toLowerCase())) {
       return false;
@@ -137,485 +199,650 @@ export const BuddyFeedScreen: React.FC<BuddyFeedScreenProps> = ({
     if (filterBudget !== 'all' && post.budgetTier !== filterBudget) {
       return false;
     }
-    if (searchQuery.trim() && !post.activityTitle.toLowerCase().includes(searchQuery.toLowerCase()) && !post.activityDetails.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return (
+        post.activityTitle.toLowerCase().includes(q) ||
+        post.activityDetails.toLowerCase().includes(q) ||
+        post.destinationCity.toLowerCase().includes(q)
+      );
     }
     return true;
   });
 
-  // Direct chat thread
-  if (selectedBuddy) {
-    return (
-      <div className="space-y-3 pb-14 animate-in fade-in duration-150">
-        {/* Chat header */}
-        <div className={`p-3 rounded-2xl border flex items-center justify-between ${
-          isDark ? 'bg-[#150f24] border-purple-900/40' : 'bg-white border-purple-100 shadow-sm'
-        }`}>
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={() => setSelectedBuddy(null)}
-              className="p-1.5 rounded-lg border border-purple-900/30 text-stone-400 hover:text-white"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <img
-              src={selectedBuddy.avatar}
-              alt={selectedBuddy.name}
-              className="w-9 h-9 rounded-full object-cover border border-purple-600"
-            />
-            <div>
-              <div className="flex items-center gap-1.5">
-                <h3 className="text-xs font-bold">{selectedBuddy.name}</h3>
-                <span className="text-[9px] bg-purple-500/20 text-purple-600 dark:text-purple-300 px-1 rounded font-mono font-bold">
-                  AU10TIX ✓
-                </span>
-              </div>
-              <p className="text-[10px] text-stone-400">{selectedBuddy.nationality} · {selectedBuddy.tripsCompleted} trips</p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => alert(`Report filed for ${selectedBuddy.name}. TRAVORA trust team alerted.`)}
-            className="text-stone-400 hover:text-red-500 p-1.5"
-            title="Report / Safety Flag"
-          >
-            <AlertOctagon className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Public meetup venue advice */}
-        <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/30 text-[11px] text-purple-600 dark:text-purple-300 flex items-center justify-between">
-          <span>Safe Meetup Spot: {selectedBuddy.safeMeetupLocation}</span>
-          <button
-            onClick={() => {
-              setChatMessages((prev) => [
-                ...prev,
-                {
-                  id: `loc_${Date.now()}`,
-                  senderId: user.id,
-                  text: '📍 Shared Live Safe Zone Location: Cinnamon Gardens (Colombo 07)',
-                  timestamp: 'Just now',
-                  isLocationShare: true,
-                },
-              ]);
-            }}
-            className="font-bold underline flex items-center gap-1"
-          >
-            <Share2 className="w-3 h-3" /> Share Pin
-          </button>
-        </div>
-
-        {/* Messages */}
-        <div className={`space-y-2.5 min-h-[260px] p-3 rounded-2xl border ${
-          isDark ? 'bg-black/40 border-purple-900/30' : 'bg-purple-50/30 border-purple-100'
-        }`}>
-          {chatMessages.map((msg) => {
-            const isMe = msg.senderId === user.id || msg.senderId === 'usr_maya_colombo';
-            return (
-              <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                <div
-                  className={`max-w-[80%] p-3 rounded-2xl text-xs leading-relaxed ${
-                    isMe
-                      ? 'bg-purple-700 text-white rounded-br-xs'
-                      : isDark
-                      ? 'bg-stone-900 border border-purple-900/40 text-stone-200 rounded-bl-xs'
-                      : 'bg-white border border-purple-100 text-stone-800 rounded-bl-xs shadow-xs'
-                  }`}
-                >
-                  {msg.text}
-                </div>
-                <span className="text-[9px] text-stone-500 mt-0.5 px-1">{msg.timestamp}</span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Input */}
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={newMessageText}
-            onChange={(e) => setNewMessageText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && newMessageText.trim()) {
-                setChatMessages([
-                  ...chatMessages,
-                  { id: `m_${Date.now()}`, senderId: user.id, text: newMessageText, timestamp: 'Just now' },
-                ]);
-                setNewMessageText('');
-              }
-            }}
-            placeholder={`Message ${selectedBuddy.name.split(' ')[0]}...`}
-            className={`flex-1 rounded-2xl px-4 py-2.5 text-xs border focus:outline-none focus:border-purple-600 ${
-              isDark ? 'bg-[#150f24] border-purple-900/40 text-stone-100' : 'bg-white border-purple-200 text-stone-900'
-            }`}
-          />
-          <button
-            onClick={() => {
-              if (newMessageText.trim()) {
-                setChatMessages([
-                  ...chatMessages,
-                  { id: `m_${Date.now()}`, senderId: user.id, text: newMessageText, timestamp: 'Just now' },
-                ]);
-                setNewMessageText('');
-              }
-            }}
-            className="p-2.5 rounded-2xl bg-purple-700 hover:bg-purple-600 text-white shadow-xs"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4 pb-14 font-['Plus_Jakarta_Sans',sans-serif]">
-      {/* Top Header & Post Creator CTA */}
-      <div className={`p-4 rounded-3xl border space-y-3 ${
-        isDark ? 'bg-[#150f24] border-purple-900/40' : 'bg-white border-purple-100 shadow-sm'
-      }`}>
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-sm sm:text-base font-extrabold tracking-tight">
-              Community Travel Buddy Network
-            </h2>
-            <p className="text-[11px] text-stone-500 dark:text-stone-400">
-              100% AU10TIX ID & Liveness Verified Female Travelers
-            </p>
+    <div className="flex flex-col gap-4 p-3 sm:p-4 pb-20 select-none">
+      {/* ========================================================
+          TOP SECTION SELECTOR (MATCHING SCREENSHOT 5)
+         ======================================================== */}
+      <div className="flex flex-col gap-3">
+        {/* Card 1: Verified Female Travel Guides Selector */}
+        <div
+          onClick={() => setActiveSection('guides')}
+          className={`rounded-2xl border p-4 shadow-md cursor-pointer transition transform active:scale-98 ${
+            activeSection === 'guides'
+              ? 'bg-[#180d33] border-purple-500 text-white shadow-purple-900/30 ring-2 ring-purple-600/50'
+              : isDark
+              ? 'bg-[#150a28] border-purple-900/40 text-stone-200 hover:border-purple-700'
+              : 'bg-white border-purple-100 text-stone-900 shadow-xs hover:border-purple-300'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-purple-700/60 border border-purple-500/40 flex items-center justify-center">
+                <Compass className="w-4 h-4 text-purple-200" />
+              </div>
+              <h3 className="font-extrabold text-sm sm:text-base text-stone-900 dark:text-white">
+                Verified Female Travel Guides
+              </h3>
+            </div>
+            <span className="text-[9px] bg-purple-900 text-purple-200 border border-purple-500/40 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">
+              SLTDA LICENSED
+            </span>
           </div>
-
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold shadow-xs transition"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Post Request</span>
-          </button>
+          <p className="text-xs text-stone-600 dark:text-purple-200/80 pl-10 leading-relaxed">
+            Navigate markets, sacred temples, and isolated hiking ridges with safety-vetted female escorts who speak fluent local languages.
+          </p>
         </div>
 
-        {/* Sub-tab Switcher: 'posts' vs 'travelers' */}
-        <div className="flex gap-2 text-xs border-b border-purple-900/20 dark:border-purple-900/40 pb-2">
-          <button
-            onClick={() => setSubTab('posts')}
-            className={`font-bold pb-0.5 transition ${
-              subTab === 'posts'
-                ? 'text-purple-600 dark:text-purple-300 border-b-2 border-purple-600'
-                : 'text-stone-400 hover:text-stone-200'
-            }`}
-          >
-            Buddy Requests ({filteredPosts.length})
-          </button>
-          <button
-            onClick={() => setSubTab('travelers')}
-            className={`font-bold pb-0.5 transition ${
-              subTab === 'travelers'
-                ? 'text-purple-600 dark:text-purple-300 border-b-2 border-purple-600'
-                : 'text-stone-400 hover:text-stone-200'
-            }`}
-          >
-            Traveler Directory ({verifiedTravelBuddies.length})
-          </button>
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs">
-          {/* City filter */}
-          <select
-            value={filterCity}
-            onChange={(e) => setFilterCity(e.target.value)}
-            className={`px-2.5 py-1 rounded-xl border text-xs font-medium focus:outline-none ${
-              isDark ? 'bg-stone-900 border-purple-900/50 text-stone-200' : 'bg-purple-50 border-purple-200 text-stone-800'
-            }`}
-          >
-            <option value="all">All Cities</option>
-            <option value="Colombo">Colombo</option>
-            <option value="Galle">Galle</option>
-            <option value="Mirissa">Mirissa</option>
-            <option value="Kandy">Kandy</option>
-          </select>
-
-          {/* Budget filter */}
-          <select
-            value={filterBudget}
-            onChange={(e) => setFilterBudget(e.target.value)}
-            className={`px-2.5 py-1 rounded-xl border text-xs font-medium focus:outline-none ${
-              isDark ? 'bg-stone-900 border-purple-900/50 text-stone-200' : 'bg-purple-50 border-purple-200 text-stone-800'
-            }`}
-          >
-            <option value="all">All Budgets</option>
-            <option value="$">$ (Budget / Hostels)</option>
-            <option value="$$">$$ (Mid / Private Stays)</option>
-            <option value="$$$">$$$ (Luxury / Villas)</option>
-          </select>
-
-          {/* Search box */}
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search keywords..."
-            className={`flex-1 min-w-[120px] px-3 py-1 rounded-xl border text-xs focus:outline-none ${
-              isDark ? 'bg-stone-900 border-purple-900/50 text-stone-200' : 'bg-purple-50 border-purple-200 text-stone-800'
-            }`}
-          />
+        {/* Card 2: Community Travel Buddy Network Selector */}
+        <div
+          onClick={() => setActiveSection('buddies')}
+          className={`rounded-2xl border p-4 shadow-md cursor-pointer transition transform active:scale-98 ${
+            activeSection === 'buddies'
+              ? 'bg-[#180d33] border-purple-500 text-white shadow-purple-900/30 ring-2 ring-purple-600/50'
+              : isDark
+              ? 'bg-[#150a28] border-purple-900/40 text-stone-200 hover:border-purple-700'
+              : 'bg-white border-purple-100 text-stone-900 shadow-xs hover:border-purple-300'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-purple-700/60 border border-purple-500/40 flex items-center justify-center">
+                <ShieldCheck className="w-4 h-4 text-purple-200" />
+              </div>
+              <h3 className="font-extrabold text-sm sm:text-base text-stone-900 dark:text-white">
+                Community Travel Buddy Network
+              </h3>
+            </div>
+            <span className="text-[9px] bg-emerald-950 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">
+              100% VERIFIED
+            </span>
+          </div>
+          <p className="text-xs text-stone-600 dark:text-purple-200/80 pl-10 leading-relaxed">
+            100% AU10TIX ID & Liveness Verified Female Travelers connecting for shared cabs, trails, and safe meetups.
+          </p>
         </div>
       </div>
 
-      {/* SUB-TAB 1: COMMUNITY BUDDY REQUESTS */}
-      {subTab === 'posts' && (
-        <div className="space-y-3">
-          {filteredPosts.map((post) => (
-            <div
-              key={post.postId}
-              className={`p-4 rounded-3xl border space-y-3 transition hover:shadow-md ${
-                isDark ? 'bg-[#150f24] border-purple-900/40' : 'bg-white border-purple-100 shadow-sm'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <img
-                    src={post.userAvatar}
-                    alt={post.userName}
-                    className="w-10 h-10 rounded-full object-cover border border-purple-600"
-                  />
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-xs">{post.userName}</span>
-                      <span className="text-[9px] bg-purple-500/20 text-purple-600 dark:text-purple-300 px-1 rounded font-bold">
-                        AU10TIX ✓
+      {/* ========================================================
+          VIEW A: VERIFIED FEMALE GUIDES (MATCHING SCREENSHOT 6)
+         ======================================================== */}
+      {activeSection === 'guides' && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between px-1">
+            <h4 className="font-black text-sm text-stone-900 dark:text-white">
+              Licensed Guides Directory ({mockTravelGuides.length})
+            </h4>
+            <span className="text-xs text-purple-600 dark:text-purple-300 font-semibold">
+              Kandy & Central Province
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {mockTravelGuides.map((guide) => (
+              <div
+                key={guide.guideId}
+                className={`rounded-2xl border p-4 shadow-sm transition ${
+                  isDark
+                    ? 'bg-[#150a28] border-purple-800/40 text-white'
+                    : 'bg-white border-purple-100 text-stone-900 shadow-xs'
+                }`}
+              >
+                {/* Guide Header */}
+                <div className="flex items-start justify-between gap-3 mb-2.5">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={guide.avatar}
+                      alt={guide.name}
+                      className="w-12 h-12 rounded-xl object-cover border-2 border-purple-500/60 shadow-md"
+                    />
+                    <div>
+                      <h4 className="font-black text-sm sm:text-base text-stone-900 dark:text-white leading-tight">
+                        {guide.name}
+                      </h4>
+                      <p className="text-[11px] text-purple-600 dark:text-purple-300 font-medium">
+                        {guide.city}
+                      </p>
+                      <span className="text-[10px] text-stone-400 font-mono">
+                        {guide.licenseNumber}
                       </span>
                     </div>
-                    <div className="text-[10px] text-stone-400 flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-purple-400" />
-                      <span>{post.destinationCity}</span>
-                      <span>·</span>
-                      <Calendar className="w-3 h-3 text-purple-400" />
-                      <span>{post.startDate} to {post.endDate}</span>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="flex items-center gap-1 text-amber-500 font-black text-xs justify-end">
+                      <Star className="w-3 h-3 fill-amber-500" />
+                      <span>{guide.rating}</span>
                     </div>
+                    <span className="text-xs font-black text-purple-700 dark:text-purple-300 block mt-0.5">
+                      LKR {guide.dailyRateLKR.toLocaleString()}/day
+                    </span>
+                    <span className="text-[9px] text-stone-400">~${guide.dailyRateUSD}/day</span>
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <span className="text-[10px] bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20 px-2 py-0.5 rounded-full font-bold">
-                    Budget {post.budgetTier} · {post.transportMode}
-                  </span>
-                  <div className="text-[10px] text-stone-400 mt-1">{post.createdAt}</div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-xs sm:text-sm font-bold text-purple-600 dark:text-purple-300">{post.activityTitle}</h4>
-                <p className="text-xs text-stone-600 dark:text-stone-300 mt-1 leading-relaxed">
-                  {post.activityDetails}
+                {/* Bio Quote */}
+                <p className="text-xs text-stone-600 dark:text-stone-300 italic mb-3 leading-relaxed">
+                  "{guide.bio}"
                 </p>
-              </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-purple-900/20 dark:border-purple-900/40 text-xs">
-                <div className="flex gap-1 text-[10px]">
-                  {post.tags.map((tag, i) => (
-                    <span key={i} className="text-stone-400">#{tag}</span>
+                {/* Badges / Specialties */}
+                <div className="flex flex-wrap gap-1.5 mb-3 text-[10px]">
+                  <span className="bg-purple-950/40 border border-purple-800/40 text-purple-300 px-2 py-0.5 rounded font-medium">
+                    🌐 {guide.languages.join(', ')}
+                  </span>
+                  {guide.specialties.map((spec, i) => (
+                    <span
+                      key={i}
+                      className="bg-black/30 border border-purple-900/40 text-purple-200 px-2 py-0.5 rounded font-medium"
+                    >
+                      ✓ {spec}
+                    </span>
                   ))}
                 </div>
 
-                <button
-                  onClick={() => {
-                    const match = verifiedTravelBuddies.find((b) => b.name === post.userName) || verifiedTravelBuddies[0];
-                    setSelectedBuddy(match);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-600 text-white font-bold text-xs shadow-xs"
-                >
-                  <MessageCircle className="w-3.5 h-3.5" />
-                  <span>Connect & Chat</span>
-                </button>
+                {/* Action Buttons matching Screenshot 6 */}
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-purple-900/30">
+                  <button
+                    onClick={() => setActiveChatBuddy(guide)}
+                    className="py-2 rounded-xl border border-purple-500/40 bg-purple-950/30 hover:bg-purple-950/60 text-purple-300 text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    <span>Message</span>
+                  </button>
+
+                  <button
+                    onClick={() => onBookGuide && onBookGuide(guide)}
+                    className="py-2 rounded-xl bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md transition"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Book Escort Guide (12%)</span>
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
-      {/* SUB-TAB 2: VERIFIED TRAVELER DIRECTORY */}
-      {subTab === 'travelers' && (
-        <div className="space-y-3">
-          {verifiedTravelBuddies.map((buddy) => (
-            <div
-              key={buddy.id}
-              className={`p-4 rounded-3xl border space-y-3 ${
-                isDark ? 'bg-[#150f24] border-purple-900/40' : 'bg-white border-purple-100 shadow-sm'
+      {/* ========================================================
+          VIEW B: COMMUNITY TRAVEL BUDDY NETWORK (MATCHING SCREENSHOT 7)
+         ======================================================== */}
+      {activeSection === 'buddies' && (
+        <div className="flex flex-col gap-3">
+          {/* Header with '+ Post Request' Button (Screenshot 7) */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-black text-sm text-stone-900 dark:text-white">
+                Community Travel Buddy Network
+              </h4>
+              <p className="text-[10px] text-stone-500 dark:text-purple-300">
+                100% AU10TIX ID & Liveness Verified Female Travelers
+              </p>
+            </div>
+
+            <button
+              onClick={handleOpenCreateModal}
+              className="bg-gradient-to-r from-purple-700 to-fuchsia-600 hover:from-purple-800 hover:to-fuchsia-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1 shadow-md shadow-purple-900/20 active:scale-95 transition shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Post Request</span>
+            </button>
+          </div>
+
+          {/* Sub Tabs: Buddy Requests (3) vs Traveler Directory (4) */}
+          <div className="flex items-center gap-4 border-b border-purple-900/30 pb-2 text-xs font-bold">
+            <button
+              onClick={() => setBuddySubTab('posts')}
+              className={`pb-1 transition border-b-2 ${
+                buddySubTab === 'posts'
+                  ? 'border-purple-500 text-purple-600 dark:text-purple-300'
+                  : 'border-transparent text-stone-400 hover:text-stone-200'
               }`}
             >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={buddy.avatar}
-                    alt={buddy.name}
-                    className="w-12 h-12 rounded-2xl object-cover border-2 border-purple-600"
-                  />
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="text-sm font-bold">{buddy.name}</h3>
-                      <span className="text-xs text-stone-400">({buddy.age})</span>
-                      <span className="text-[10px] bg-purple-500/20 text-purple-600 dark:text-purple-300 px-1.5 py-0.2 rounded-full font-bold">
-                        AU10TIX ✓
-                      </span>
+              Buddy Requests ({filteredPosts.length})
+            </button>
+            <button
+              onClick={() => setBuddySubTab('travelers')}
+              className={`pb-1 transition border-b-2 ${
+                buddySubTab === 'travelers'
+                  ? 'border-purple-500 text-purple-600 dark:text-purple-300'
+                  : 'border-transparent text-stone-400 hover:text-stone-200'
+              }`}
+            >
+              Traveler Directory ({verifiedTravelBuddies.length})
+            </button>
+          </div>
+
+          {/* Filter Dropdowns & Keyword Search (Screenshot 7) */}
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={filterCity}
+              onChange={(e) => setFilterCity(e.target.value)}
+              className={`py-1.5 px-2.5 rounded-xl border text-xs font-semibold outline-none ${
+                isDark ? 'bg-[#150a28] border-purple-800/50 text-purple-200' : 'bg-white border-purple-200 text-purple-900'
+              }`}
+            >
+              <option value="all">All Cities</option>
+              <option value="kandy">Kandy</option>
+              <option value="galle">Galle & Mirissa</option>
+              <option value="colombo">Colombo</option>
+              <option value="ella">Ella</option>
+            </select>
+
+            <select
+              value={filterBudget}
+              onChange={(e) => setFilterBudget(e.target.value)}
+              className={`py-1.5 px-2.5 rounded-xl border text-xs font-semibold outline-none ${
+                isDark ? 'bg-[#150a28] border-purple-800/50 text-purple-200' : 'bg-white border-purple-200 text-purple-900'
+              }`}
+            >
+              <option value="all">All Budgets</option>
+              <option value="$">$ (Budget / Backpacker)</option>
+              <option value="$$">$$ (Comfort / Split Cab)</option>
+              <option value="$$$">$$$ (Premium / Luxury)</option>
+            </select>
+          </div>
+
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${
+            isDark ? 'bg-[#150a28] border-purple-800/50 text-white' : 'bg-white border-purple-200 text-stone-900'
+          }`}>
+            <Search className="w-3.5 h-3.5 text-purple-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search keywords (e.g. electric cab, train, hike)..."
+              className="bg-transparent text-xs outline-none w-full"
+            />
+          </div>
+
+          {/* BUDDY REQUESTS FEED (Matching Screenshot 7) */}
+          {buddySubTab === 'posts' ? (
+            <div className="flex flex-col gap-3">
+              {filteredPosts.map((post) => {
+                const isMyPost = post.userId === user.id;
+
+                return (
+                  <div
+                    key={post.postId}
+                    className={`rounded-2xl border p-4 shadow-sm transition ${
+                      isDark
+                        ? 'bg-[#150a28] border-purple-800/40 text-white'
+                        : 'bg-white border-purple-100 text-stone-900 shadow-xs'
+                    }`}
+                  >
+                    {/* Post User Header */}
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2.5">
+                        <img
+                          src={post.userAvatar}
+                          alt={post.userName}
+                          className="w-10 h-10 rounded-full object-cover border border-purple-500/60"
+                        />
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-extrabold text-xs sm:text-sm text-stone-900 dark:text-white">
+                              {post.userName}
+                            </span>
+                            <span className="text-[9px] bg-purple-900/60 text-purple-300 font-bold px-1.5 py-0.2 rounded border border-purple-500/30">
+                              AU10TIX ✔
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-stone-500 dark:text-stone-400 flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3 text-purple-400" /> {post.destinationCity} ·{' '}
+                            <Calendar className="w-3 h-3 text-purple-400" /> {post.startDate} to {post.endDate}
+                          </p>
+                          {post.startTime && (
+                            <p className="text-[9px] text-purple-300 flex items-center gap-1 mt-0.5">
+                              <Clock className="w-2.5 h-2.5 text-purple-400" /> Depart: {post.startTime} - Return: {post.endTime}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[10px] bg-purple-950/60 border border-purple-800/50 text-purple-300 font-bold px-2 py-0.5 rounded-md block">
+                          Budget {post.budgetTier}
+                        </span>
+                        <span className="text-[10px] text-purple-400 font-semibold block mt-1">
+                          {post.transportMode}
+                        </span>
+                        <span className="text-[9px] text-stone-400 block mt-0.5">{post.createdAt}</span>
+                      </div>
                     </div>
-                    <div className="text-xs text-stone-500 dark:text-stone-400 flex items-center gap-1 mt-0.5">
-                      <span>{buddy.nationality}</span>
-                      <span>·</span>
-                      <span className="text-purple-600 dark:text-purple-300 font-mono text-[11px] font-bold">{buddy.currentCity}</span>
+
+                    {/* Activity Title & Details */}
+                    <h5 className="font-black text-xs sm:text-sm text-purple-700 dark:text-purple-200 mt-2">
+                      {post.activityTitle}
+                    </h5>
+                    <p className="text-xs text-stone-600 dark:text-stone-300 mt-1 leading-relaxed">
+                      {post.activityDetails}
+                    </p>
+
+                    {/* Footer Actions */}
+                    <div className="flex items-center justify-between border-t border-purple-900/30 pt-2.5 mt-3">
+                      <div className="flex flex-wrap gap-1">
+                        {post.tags.map((tag, i) => (
+                          <span key={i} className="text-[10px] text-stone-400 dark:text-purple-300/80">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* If My Post: Show Edit & Delete per User Request! */}
+                      {isMyPost ? (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleOpenEditModal(post)}
+                            className="p-1.5 rounded-lg bg-purple-900/40 text-purple-300 hover:bg-purple-800 text-xs font-bold flex items-center gap-1"
+                            title="Edit Request"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeletePost(post.postId)}
+                            className="p-1.5 rounded-lg bg-rose-950/40 text-rose-300 hover:bg-rose-900 text-xs font-bold flex items-center gap-1"
+                            title="Delete Request"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            const buddy = verifiedTravelBuddies.find((b) => b.name === post.userName) || verifiedTravelBuddies[0];
+                            setActiveChatBuddy(buddy);
+                          }}
+                          className="bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm active:scale-95 transition"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>Connect & Chat</span>
+                        </button>
+                      )}
                     </div>
                   </div>
-                </div>
-
-                <button
-                  onClick={() => setSelectedBuddy(buddy)}
-                  className="p-2 rounded-xl bg-purple-600/20 text-purple-600 dark:text-purple-300 hover:bg-purple-600 hover:text-white transition"
-                  title="Direct Message"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                </button>
-              </div>
-
-              <p className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed bg-purple-500/5 dark:bg-stone-950/60 p-2.5 rounded-2xl border border-purple-900/20">
-                "{buddy.bio}"
-              </p>
-
-              <div className="flex items-center justify-between text-xs text-stone-500 dark:text-stone-400 pt-1 border-t border-purple-900/20 dark:border-purple-900/40">
-                <div className="flex items-center gap-1 text-[11px]">
-                  <MapPin className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Safe Meetup: <strong>{buddy.safeMeetupLocation}</strong></span>
-                </div>
-                <button
-                  onClick={() => setSelectedBuddy(buddy)}
-                  className="text-purple-600 dark:text-purple-400 font-bold hover:underline"
-                >
-                  Open Chat →
-                </button>
-              </div>
+                );
+              })}
             </div>
-          ))}
+          ) : (
+            /* TRAVELER DIRECTORY (Screenshot 7 secondary tab) */
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {verifiedTravelBuddies.map((buddy) => (
+                <div
+                  key={buddy.id}
+                  className={`rounded-2xl border p-3.5 shadow-xs transition flex flex-col justify-between ${
+                    isDark ? 'bg-[#150a28] border-purple-800/40 text-white' : 'bg-white border-purple-100 text-stone-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <img
+                      src={buddy.avatar}
+                      alt={buddy.name}
+                      className="w-11 h-11 rounded-full object-cover border border-purple-500"
+                    />
+                    <div>
+                      <h5 className="font-extrabold text-xs text-stone-900 dark:text-white">
+                        {buddy.name}, {buddy.age}
+                      </h5>
+                      <p className="text-[10px] text-purple-400 font-medium">
+                        {buddy.nationality} · {buddy.currentCity}
+                      </p>
+                      <span className="text-[9px] text-emerald-400 font-semibold block">
+                        ✓ {buddy.verificationBadgeType}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-stone-600 dark:text-stone-300 line-clamp-2 italic mb-2">
+                    "{buddy.bio}"
+                  </p>
+                  <button
+                    onClick={() => setActiveChatBuddy(buddy)}
+                    className="w-full py-1.5 rounded-xl bg-purple-700 text-white font-bold text-xs flex items-center justify-center gap-1 hover:bg-purple-800 transition"
+                  >
+                    <MessageCircle className="w-3 h-3" />
+                    <span>Message Buddy</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* CREATE POST MODAL */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className={`w-full max-w-md rounded-3xl border p-5 sm:p-6 space-y-4 shadow-2xl ${
-            isDark ? 'bg-[#150f24] border-purple-900/60 text-white' : 'bg-white border-purple-200 text-stone-900'
-          }`}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold flex items-center gap-1.5">
-                <Plus className="w-4 h-4 text-purple-500" />
-                Create Travel Buddy Request
+      {/* ========================================================
+          MODAL: POST / EDIT BUDDY REQUEST (CALENDAR & CLOCK PICKER)
+         ======================================================== */}
+      {showPostModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-[#150a28] border border-purple-500/50 rounded-3xl p-5 max-w-md w-full text-white shadow-2xl my-auto">
+            <div className="flex items-center justify-between border-b border-purple-900/40 pb-2.5 mb-3">
+              <h3 className="font-black text-sm text-white flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-purple-400" />
+                <span>{editingPostId ? 'Edit Travel Buddy Request' : 'Post New Travel Buddy Request'}</span>
               </h3>
-              <button onClick={() => setShowCreateModal(false)} className="text-stone-400 hover:text-white">
+              <button onClick={() => setShowPostModal(false)} className="text-stone-400 hover:text-white">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            <form onSubmit={handleSavePost} className="flex flex-col gap-3 text-xs">
+              {/* Activity Title */}
               <div>
-                <label className="text-stone-400 block mb-1">Activity Headline</label>
+                <label className="text-purple-300 font-bold block mb-1">
+                  Activity Title
+                </label>
                 <input
                   type="text"
-                  placeholder="e.g. Split HelaGo cab to Galle Fort & Sunset Tea"
-                  value={postTitle}
-                  onChange={(e) => setPostTitle(e.target.value)}
-                  className={`w-full p-2.5 rounded-xl border focus:outline-none focus:border-purple-600 ${
-                    isDark ? 'bg-stone-950 border-purple-900/40' : 'bg-purple-50 border-purple-200'
-                  }`}
+                  required
+                  value={formTitle}
+                  onChange={(e) => setFormTitle(e.target.value)}
+                  placeholder="e.g. Share Electric Cab from Kandy to Galle Fort"
+                  className="w-full p-2 rounded-xl bg-black/50 border border-purple-800 text-white outline-none"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              {/* Destination City */}
+              <div>
+                <label className="text-purple-300 font-bold block mb-1">
+                  Destination City / Region
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formDestination}
+                  onChange={(e) => setFormDestination(e.target.value)}
+                  placeholder="e.g. Kandy, Galle, Ella"
+                  className="w-full p-2 rounded-xl bg-black/50 border border-purple-800 text-white outline-none"
+                />
+              </div>
+
+              {/* DATE PICKER (CALENDAR) & TIME PICKER (CLOCK) */}
+              <div className="grid grid-cols-2 gap-2 p-3 rounded-2xl bg-black/40 border border-purple-800/40">
+                {/* Start Date & Time */}
                 <div>
-                  <label className="text-stone-400 block mb-1">Destination City</label>
+                  <label className="text-[10px] text-purple-300 font-bold flex items-center gap-1 mb-1">
+                    <Calendar className="w-3 h-3 text-purple-400" /> Start Date
+                  </label>
                   <input
-                    type="text"
-                    value={postDestination}
-                    onChange={(e) => setPostDestination(e.target.value)}
-                    className={`w-full p-2.5 rounded-xl border focus:outline-none focus:border-purple-600 ${
-                      isDark ? 'bg-stone-950 border-purple-900/40' : 'bg-purple-50 border-purple-200'
-                    }`}
+                    type="date"
+                    required
+                    value={formStartDate}
+                    onChange={(e) => setFormStartDate(e.target.value)}
+                    className="w-full p-1.5 rounded-lg bg-stone-900 border border-purple-700 text-white text-xs outline-none"
+                  />
+                  <label className="text-[10px] text-purple-300 font-bold flex items-center gap-1 mt-1.5 mb-1">
+                    <Clock className="w-3 h-3 text-purple-400" /> Start Time
+                  </label>
+                  <input
+                    type="time"
+                    value={formStartTime}
+                    onChange={(e) => setFormStartTime(e.target.value)}
+                    className="w-full p-1.5 rounded-lg bg-stone-900 border border-purple-700 text-white text-xs outline-none"
                   />
                 </div>
+
+                {/* End Date & Time */}
                 <div>
-                  <label className="text-stone-400 block mb-1">Transport Mode</label>
+                  <label className="text-[10px] text-purple-300 font-bold flex items-center gap-1 mb-1">
+                    <Calendar className="w-3 h-3 text-purple-400" /> Return Date
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formEndDate}
+                    onChange={(e) => setFormEndDate(e.target.value)}
+                    className="w-full p-1.5 rounded-lg bg-stone-900 border border-purple-700 text-white text-xs outline-none"
+                  />
+                  <label className="text-[10px] text-purple-300 font-bold flex items-center gap-1 mt-1.5 mb-1">
+                    <Clock className="w-3 h-3 text-purple-400" /> Return Time
+                  </label>
+                  <input
+                    type="time"
+                    value={formEndTime}
+                    onChange={(e) => setFormEndTime(e.target.value)}
+                    className="w-full p-1.5 rounded-lg bg-stone-900 border border-purple-700 text-white text-xs outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Budget & Transport Mode */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-purple-300 font-bold block mb-1">
+                    Budget Tier
+                  </label>
                   <select
-                    value={postTransport}
-                    onChange={(e) => setPostTransport(e.target.value as any)}
-                    className={`w-full p-2.5 rounded-xl border focus:outline-none ${
-                      isDark ? 'bg-stone-950 border-purple-900/40 text-stone-200' : 'bg-purple-50 border-purple-200 text-stone-800'
-                    }`}
+                    value={formBudget}
+                    onChange={(e) => setFormBudget(e.target.value as any)}
+                    className="w-full p-2 rounded-xl bg-black/50 border border-purple-800 text-white text-xs outline-none"
                   >
-                    <option value="HelaGo Cab">HelaGo Cab</option>
-                    <option value="Train">Scenic Train</option>
-                    <option value="Tuk-Tuk">Metered Tuk-Tuk</option>
-                    <option value="Shared Van">Shared Van</option>
-                    <option value="Walking">Walking Escort</option>
+                    <option value="$">$ (Budget Backpacker)</option>
+                    <option value="$$">$$ (Comfort / Split Cab)</option>
+                    <option value="$$$">$$$ (Premium / Luxury)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-purple-300 font-bold block mb-1">
+                    Transport Mode
+                  </label>
+                  <select
+                    value={formTransport}
+                    onChange={(e) => setFormTransport(e.target.value as any)}
+                    className="w-full p-2 rounded-xl bg-black/50 border border-purple-800 text-white text-xs outline-none"
+                  >
+                    <option value="HelaGo Cab">HelaGo Electric Cab</option>
+                    <option value="Train">Scenic Blue Train</option>
+                    <option value="Tuk-Tuk">Metered Pink Tuk-Tuk</option>
+                    <option value="Shared Van">Shared Executive Van</option>
+                    <option value="Walking">Walking / Hike</option>
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-stone-400 block mb-1">Start Date</label>
-                  <input
-                    type="date"
-                    value={postStartDate}
-                    onChange={(e) => setPostStartDate(e.target.value)}
-                    className={`w-full p-2 rounded-xl border focus:outline-none ${
-                      isDark ? 'bg-stone-950 border-purple-900/40 text-stone-200' : 'bg-purple-50 border-purple-200 text-stone-800'
-                    }`}
-                  />
-                </div>
-                <div>
-                  <label className="text-stone-400 block mb-1">Budget Tier</label>
-                  <div className="grid grid-cols-3 gap-1">
-                    {(['$', '$$', '$$$'] as const).map((tier) => (
-                      <button
-                        key={tier}
-                        type="button"
-                        onClick={() => setPostBudget(tier)}
-                        className={`py-1.5 rounded-lg font-bold border transition ${
-                          postBudget === tier
-                            ? 'bg-purple-600 text-white border-purple-500'
-                            : 'bg-stone-900 border-stone-800 text-stone-400'
-                        }`}
-                      >
-                        {tier}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
+              {/* Description */}
               <div>
-                <label className="text-stone-400 block mb-1">Activity & Route Details</label>
+                <label className="text-purple-300 font-bold block mb-1">
+                  Trip Details & Meeting Safety Preferences
+                </label>
                 <textarea
                   rows={3}
-                  placeholder="Share details on where you want to go, meetup preferences, and itinerary..."
-                  value={postDetails}
-                  onChange={(e) => setPostDetails(e.target.value)}
-                  className={`w-full p-2.5 rounded-xl border focus:outline-none focus:border-purple-600 ${
-                    isDark ? 'bg-stone-950 border-purple-900/40' : 'bg-purple-50 border-purple-200'
-                  }`}
+                  value={formDetails}
+                  onChange={(e) => setFormDetails(e.target.value)}
+                  placeholder="Share your planned route, safe public meetup spot, and what kind of buddy you'd like to travel with..."
+                  className="w-full p-2 rounded-xl bg-black/50 border border-purple-800 text-white text-xs outline-none"
                 />
               </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPostModal(false)}
+                  className="flex-1 py-2 rounded-xl bg-stone-800 text-stone-300 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 rounded-xl bg-gradient-to-r from-purple-700 to-fuchsia-600 text-white font-black shadow-md hover:from-purple-800 hover:to-fuchsia-700"
+                >
+                  {editingPostId ? 'Save Changes' : 'Post Request'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DIRECT CHAT MODAL */}
+      {activeChatBuddy && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-[#150a28] border border-purple-500/50 rounded-3xl p-4 max-w-sm w-full text-white shadow-2xl flex flex-col h-[480px]">
+            <div className="flex items-center justify-between border-b border-purple-900/40 pb-2.5">
+              <div className="flex items-center gap-2">
+                <img
+                  src={activeChatBuddy.avatar}
+                  alt={activeChatBuddy.name}
+                  className="w-8 h-8 rounded-full object-cover border border-purple-400"
+                />
+                <div>
+                  <h4 className="font-black text-xs text-white">{activeChatBuddy.name}</h4>
+                  <span className="text-[9px] text-emerald-400 font-semibold">AU10TIX Verified ✓</span>
+                </div>
+              </div>
+              <button onClick={() => setActiveChatBuddy(null)} className="text-stone-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            <div className="flex gap-2 pt-2">
+            {/* Chat Messages */}
+            <div className="flex-1 overflow-y-auto py-3 space-y-2 text-xs">
+              {((chatMessages['id' in activeChatBuddy ? activeChatBuddy.id : activeChatBuddy.guideId]) || []).map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`p-2.5 rounded-2xl max-w-[85%] ${
+                    msg.senderId === user.id
+                      ? 'ml-auto bg-purple-700 text-white rounded-br-xs'
+                      : 'mr-auto bg-stone-900 text-stone-200 border border-purple-900/40 rounded-bl-xs'
+                  }`}
+                >
+                  <p>{msg.text}</p>
+                  <span className="text-[9px] text-purple-300/80 block text-right mt-0.5">
+                    {msg.timestamp}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Message Input */}
+            <div className="flex items-center gap-1.5 border-t border-purple-900/40 pt-2">
+              <input
+                type="text"
+                value={inputMsg}
+                onChange={(e) => setInputMsg(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder="Type safe message..."
+                className="flex-1 p-2 rounded-xl bg-black/50 border border-purple-800 text-xs text-white outline-none"
+              />
               <button
-                onClick={() => setShowCreateModal(false)}
-                className="flex-1 py-2.5 rounded-xl border border-stone-700 text-stone-400 text-xs font-semibold"
+                onClick={handleSendMessage}
+                className="p-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white"
               >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreatePost}
-                className="flex-1 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold shadow-md transition"
-              >
-                Publish Request
+                <Send className="w-4 h-4" />
               </button>
             </div>
           </div>

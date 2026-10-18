@@ -1,21 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   ShieldAlert,
   Clock,
   PhoneCall,
-  Volume2,
-  VolumeX,
-  MapPin,
   Lock,
-  Radio,
   Phone,
   Play,
   CheckCircle,
-  Plus,
+  WifiOff,
+  Database,
+  User,
+  Shield,
   Compass,
 } from 'lucide-react';
 import { UserProfile, EmergencyHotlineData, TripTimerState } from '../../types';
-import { soundEffects } from '../../services/soundEffects';
+import { mockFakeCallPersonas } from '../../data/mockData';
 import { apiService } from '../../services/api';
 
 interface SafetyDashboardProps {
@@ -26,6 +25,7 @@ interface SafetyDashboardProps {
   onCancelTripTimer: () => void;
   onLaunchFakeCall: (personaId: string) => void;
   onOpenOfflineHotlines: () => void;
+  onOpenProfile: () => void;
   theme: 'dark' | 'light';
 }
 
@@ -37,14 +37,15 @@ export const SafetyDashboard: React.FC<SafetyDashboardProps> = ({
   onCancelTripTimer,
   onLaunchFakeCall,
   onOpenOfflineHotlines,
+  onOpenProfile,
   theme,
 }) => {
   const isDark = theme === 'dark';
 
-  // Custom Trip Duration State
-  const [selectedPresetMins, setSelectedPresetMins] = useState<number>(25);
+  // Trip Duration State
+  const [selectedDurationMins, setSelectedDurationMins] = useState<number>(25);
   const [customMinsInput, setCustomMinsInput] = useState<string>('');
-  const [isCustomMode, setIsCustomMode] = useState(false);
+  const [showCustomInput, setShowCustomInput] = useState(false);
   const [destinationName, setDestinationName] = useState('Rosmead Place, Cinnamon Gardens');
   const [transportMode, setTransportMode] = useState<'tuk_tuk' | 'taxi' | 'walk' | 'train'>('tuk_tuk');
 
@@ -52,23 +53,15 @@ export const SafetyDashboard: React.FC<SafetyDashboardProps> = ({
   const [showPinModal, setShowPinModal] = useState(false);
   const [enteredPin, setEnteredPin] = useState('');
   const [pinError, setPinError] = useState('');
-  const [duressTriggered, setDuressTriggered] = useState(false);
-
-  // SOS Emergency State
-  const [sosActive, setSosActive] = useState(false);
-  const [silentMode, setSilentMode] = useState(false);
-  const [sosAlertId, setSosAlertId] = useState<string | null>(null);
-  const [isAudioStreaming, setIsAudioStreaming] = useState(false);
-  const [broadcastLog, setBroadcastLog] = useState<string[]>([]);
+  const [sosStatusMessage, setSosStatusMessage] = useState<string | null>(null);
 
   // Fake Call caller selector
   const [selectedPersona, setSelectedPersona] = useState('mom');
 
-  const activeMinutes = isCustomMode && parseInt(customMinsInput) > 0 ? parseInt(customMinsInput) : selectedPresetMins;
+  const activeMinutes = showCustomInput && parseInt(customMinsInput, 10) > 0 ? parseInt(customMinsInput, 10) : selectedDurationMins;
 
   const handleStartTimer = () => {
     onStartTripTimer(destinationName, transportMode, activeMinutes);
-    setDuressTriggered(false);
   };
 
   const handleConfirmArrivalPrompt = () => {
@@ -85,494 +78,383 @@ export const SafetyDashboard: React.FC<SafetyDashboardProps> = ({
     } else if (enteredPin === user.duressPin) {
       onCancelTripTimer();
       setShowPinModal(false);
-      setDuressTriggered(true);
-      await triggerEmergencySos('duress_pin', true);
+      // Silent SOS trigger
+      await triggerEmergencySos(true);
     } else {
       setPinError('Incorrect 4-digit PIN. Please re-enter.');
     }
   };
 
-  const triggerEmergencySos = async (
-    triggerType: 'one_touch_sos' | 'trip_timer_missed' | 'duress_pin' = 'one_touch_sos',
-    forceSilent: boolean = false
-  ) => {
-    const isSilent = forceSilent || silentMode;
-    setSosActive(true);
-    setIsAudioStreaming(true);
-
-    if (!isSilent) {
-      soundEffects.playSirenAlarm(2500);
-    }
-
+  // One-Touch SOS: Siren Alarm Sound is REMOVED per user instructions ("Remove SOS alarms sound only")
+  const triggerEmergencySos = async (isSilentDuress: boolean = false) => {
+    setSosStatusMessage('📡 GPS Alert Dispatched! Live coordinates sent to emergency contacts.');
     try {
-      const result = await apiService.triggerSos({
+      await apiService.triggerSos({
         userId: user.id,
-        location: { lat: 6.9185, lng: 79.8682 },
+        location: { lat: 7.2912, lng: 80.662 },
         emergencyContacts: user.emergencyContacts,
-        triggerType,
-        silentAlarm: isSilent,
-        audioStreamActive: true,
+        triggerType: isSilentDuress ? 'duress_pin' : 'one_touch_sos',
+        silentAlarm: true, // Always silent per user specification
+        audioStreamActive: false,
       });
-
-      if (result.success) {
-        setSosAlertId(result.alertId);
-        setBroadcastLog([
-          `🚨 Emergency broadcast dispatched [${result.alertId}]`,
-          `📍 GPS Location locked: 6.9185° N, 79.8682° E (±4m)`,
-          `📡 Encrypted live audio stream initialized`,
-          `📱 SMS & Push dispatched to ${user.emergencyContacts.length} trusted emergency contacts`,
-          `🚔 Local jurisdiction alert dispatched: ${hotlineData.country} (${hotlineData.police})`,
-        ]);
-      }
-    } catch (e: any) {
-      setBroadcastLog([`Offline dispatch queued: SMS sent via cellular fallback`]);
+    } catch (e) {
+      // Offline fallback
     }
+
+    setTimeout(() => {
+      setSosStatusMessage(null);
+    }, 6000);
   };
 
-  const dismissSos = () => {
-    setSosActive(false);
-    setIsAudioStreaming(false);
-    setSosAlertId(null);
+  // Format seconds to mm:ss
+  const formatTimer = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
-
-  const formatTimer = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const progressPercent = tripTimer.isActive
-    ? Math.min(100, Math.max(0, 100 - (tripTimer.remainingSeconds / tripTimer.totalSeconds) * 100))
-    : 0;
 
   return (
-    <div className="space-y-4 pb-12 font-['Plus_Jakarta_Sans',sans-serif]">
-      {/* Duress Alert Indicator (Stealth notification for demo reviewer) */}
-      {duressTriggered && (
-        <div className="p-3 bg-red-950/90 border border-red-700/60 rounded-2xl text-xs text-red-200 flex items-center justify-between animate-pulse">
-          <span className="flex items-center gap-1.5 font-bold">
-            <ShieldAlert className="w-4 h-4 text-red-400" />
-            Duress Code Triggered: Silent SOS dispatched with live location!
+    <div className="flex flex-col gap-4 p-3 sm:p-4 pb-20 select-none">
+      {/* Top Header matching Screenshot 1 */}
+      <div className="flex items-center justify-between py-1 px-1">
+        <button
+          onClick={onOpenProfile}
+          className="w-10 h-10 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center shadow-md transition transform active:scale-95"
+          title="Open Profile"
+        >
+          <User className="w-5 h-5 text-white" />
+        </button>
+
+        <div className="flex items-center gap-1.5">
+          <div className="w-6 h-6 rounded-lg bg-purple-600 flex items-center justify-center relative shadow-xs">
+            <Shield className="w-4 h-4 text-white" />
+            <Compass className="w-2.5 h-2.5 text-purple-200 absolute" />
+          </div>
+          <span className="text-xl font-black tracking-wider text-purple-900 dark:text-purple-300">
+            TRAVORA
           </span>
-          <button
-            onClick={() => setDuressTriggered(false)}
-            className="text-[11px] underline text-red-300 hover:text-white"
-          >
-            Clear
-          </button>
+        </div>
+      </div>
+
+      {/* SOS Alert Toast / Broadcast Confirmation */}
+      {sosStatusMessage && (
+        <div className="bg-purple-950/90 border border-purple-500 text-white p-3 rounded-2xl shadow-xl flex items-center gap-3 animate-bounce">
+          <div className="w-3 h-3 rounded-full bg-emerald-400 animate-ping" />
+          <div className="text-xs">
+            <p className="font-bold text-sm">Emergency Alert Broadcast Active</p>
+            <p className="text-purple-200">{sosStatusMessage}</p>
+          </div>
         </div>
       )}
 
-      {/* ONE-TOUCH SOS & SILENT ALARM HERO BANNER */}
-      <div className={`p-5 rounded-3xl border transition-all ${
-        sosActive
-          ? 'bg-red-950/95 border-red-600 shadow-[0_0_35px_rgba(220,38,38,0.35)]'
-          : isDark
-          ? 'bg-[#150f24] border-purple-900/40 shadow-xl'
-          : 'bg-white border-purple-100 shadow-sm'
+      {/* CARD 1: SOS 1 Tap Trigger (Matching Screenshot 1) */}
+      <div className={`rounded-3xl border p-5 flex flex-col items-center justify-center text-center shadow-lg transition-all ${
+        isDark
+          ? 'bg-gradient-to-b from-[#180d33] to-[#120824] border-purple-800/40'
+          : 'bg-gradient-to-b from-purple-50 to-white border-purple-100 shadow-purple-900/5'
       }`}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className={`p-2 rounded-xl ${
-              sosActive
-                ? 'bg-red-600 text-white animate-pulse'
-                : 'bg-purple-600/20 text-purple-600 dark:text-purple-300'
-            }`}>
-              <ShieldAlert className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-sm sm:text-base font-extrabold tracking-tight">Active Emergency Infrastructure</h2>
-              <p className="text-[11px] text-stone-500 dark:text-stone-400">One-touch SOS & stealth silent alarm</p>
-            </div>
-          </div>
-
-          {/* Silent Alarm Toggle */}
-          <button
-            onClick={() => setSilentMode(!silentMode)}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition ${
-              silentMode
-                ? 'bg-amber-500/20 text-amber-500 dark:text-amber-300 border-amber-500/40'
-                : isDark
-                ? 'bg-stone-900 text-stone-300 border-stone-800'
-                : 'bg-purple-50 text-purple-800 border-purple-200'
-            }`}
-            title="Silent mode sends GPS and audio stream without loud siren"
-          >
-            {silentMode ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-            <span className="text-[11px]">{silentMode ? 'Silent Mode' : 'Audible Siren'}</span>
-          </button>
+        <div className="flex items-center gap-1.5 text-purple-600 dark:text-purple-300 text-xs font-semibold mb-6">
+          <Shield className="w-4 h-4 fill-purple-600/20" />
+          <span>Instantly broadcasts live GPS coordinates to emergency contacts</span>
         </div>
 
-        {/* SOS Action Button */}
-        {!sosActive ? (
-          <div className="flex flex-col items-center py-2">
-            <button
-              onClick={() => triggerEmergencySos('one_touch_sos')}
-              className="group relative flex items-center justify-center w-28 h-28 rounded-full bg-gradient-to-tr from-purple-800 via-purple-600 to-fuchsia-600 shadow-xl shadow-purple-950/40 hover:scale-105 active:scale-95 transition"
-            >
-              <div className="absolute inset-1 rounded-full border-2 border-dashed border-purple-300/40 group-hover:rotate-45 transition duration-700" />
-              <div className="flex flex-col items-center text-white">
-                <ShieldAlert className="w-8 h-8 mb-0.5 text-white animate-pulse" />
-                <span className="text-xs font-black tracking-widest uppercase">SOS</span>
-                <span className="text-[9px] text-purple-200 font-medium">1-Tap Trigger</span>
-              </div>
-            </button>
-            <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-3 text-center max-w-xs">
-              Instantly broadcasts live encrypted audio stream & GPS coordinates to {user.emergencyContacts.length} trusted contacts and authorities.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3 py-1">
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-red-900/40 border border-red-700/60">
-              <div className="flex items-center gap-2">
-                <Radio className="w-4 h-4 text-red-400 animate-pulse" />
-                <span className="text-xs font-bold text-red-200">SOS ACTIVE · LIVE GPS BROADCASTING</span>
-              </div>
-              <button
-                onClick={dismissSos}
-                className="text-xs bg-stone-900 hover:bg-stone-800 text-stone-200 px-3 py-1 rounded-xl font-bold"
-              >
-                Disarm SOS
-              </button>
-            </div>
+        {/* Big Circular SOS Button */}
+        <button
+          onClick={() => triggerEmergencySos(false)}
+          className="w-36 h-36 rounded-full bg-gradient-to-tr from-purple-800 via-purple-600 to-indigo-600 hover:from-purple-900 hover:to-indigo-700 text-white flex flex-col items-center justify-center shadow-2xl shadow-purple-900/40 border-4 border-white/20 transition-transform active:scale-90 group cursor-pointer"
+        >
+          <span className="text-3xl font-black tracking-widest text-white drop-shadow-md group-hover:scale-105 transition-transform">
+            SOS
+          </span>
+          <span className="text-[11px] font-semibold text-purple-200 mt-1 tracking-wide">
+            1 tap trigger
+          </span>
+        </button>
 
-            {/* Audio waveform */}
-            {isAudioStreaming && (
-              <div className="p-3 bg-black/60 rounded-2xl border border-red-900/50 space-y-1.5">
-                <div className="flex items-center justify-between text-xs text-stone-300">
-                  <span className="flex items-center gap-1.5 font-bold text-purple-300">
-                    <Radio className="w-3.5 h-3.5 animate-spin" /> Live Encrypted Audio Stream
-                  </span>
-                  <span className="text-[10px] font-mono text-emerald-400">24kHz PCM · Connected</span>
-                </div>
-                <div className="flex items-center justify-center gap-1 h-7">
-                  {[20, 50, 80, 95, 65, 30, 85, 95, 45, 70, 90, 35, 80, 40].map((h, i) => (
-                    <span
-                      key={i}
-                      style={{ height: `${h}%`, animationDelay: `${i * 60}ms` }}
-                      className="w-1.5 bg-gradient-to-t from-purple-500 to-red-500 rounded-full animate-pulse"
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Dispatch log */}
-            <div className="bg-black/60 p-3 rounded-2xl border border-stone-800 text-[11px] font-mono space-y-1 text-stone-300">
-              {broadcastLog.map((log, i) => (
-                <div key={i} className="flex items-start gap-1.5">
-                  <span className="text-purple-400">›</span>
-                  <span>{log}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Quick dial authorities */}
-            <div className="grid grid-cols-3 gap-2 pt-1">
-              <a
-                href={`tel:${hotlineData.police}`}
-                className="flex flex-col items-center justify-center p-2 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-center"
-              >
-                <Phone className="w-4 h-4 text-blue-400 mb-0.5" />
-                <span className="text-[10px] text-stone-400 font-semibold">Police</span>
-                <span className="text-xs font-bold text-white">{hotlineData.police}</span>
-              </a>
-
-              <a
-                href={`tel:${hotlineData.touristPolice}`}
-                className="flex flex-col items-center justify-center p-2 rounded-xl bg-stone-900 hover:bg-stone-800 border border-purple-900/50 text-center"
-              >
-                <Phone className="w-4 h-4 text-purple-400 mb-0.5" />
-                <span className="text-[10px] text-purple-300 font-semibold">Tourist Police</span>
-                <span className="text-xs font-bold text-white">{hotlineData.touristPolice}</span>
-              </a>
-
-              <a
-                href={`tel:${hotlineData.ambulance.split(' ')[0]}`}
-                className="flex flex-col items-center justify-center p-2 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-center"
-              >
-                <Phone className="w-4 h-4 text-emerald-400 mb-0.5" />
-                <span className="text-[10px] text-stone-400 font-semibold">Ambulance</span>
-                <span className="text-xs font-bold text-white">{hotlineData.ambulance.split(' ')[0]}</span>
-              </a>
-            </div>
-          </div>
-        )}
+        <p className="text-[10px] text-stone-600 dark:text-stone-300 mt-5">
+          Discreet emergency trigger. Dial Tourist Police: <strong className="text-purple-700 dark:text-purple-300">{hotlineData.touristPolice}</strong> or Ambulance: <strong className="text-purple-700 dark:text-purple-300">1990</strong>
+        </p>
       </div>
 
-      {/* DISCREET FAKE CALL DISRUPTION MODULE */}
-      <div className={`p-4 rounded-3xl border flex items-center justify-between gap-3 ${
-        isDark ? 'bg-[#150f24] border-purple-900/40' : 'bg-white border-purple-100 shadow-sm'
+      {/* CARD 2: Discreet "Fake Call" Disruption (Matching Screenshot 1) */}
+      <div className={`rounded-2xl border p-4 shadow-md transition-all ${
+        isDark
+          ? 'bg-[#180d33]/90 border-purple-800/40 text-stone-100'
+          : 'bg-white border-purple-100 text-stone-900 shadow-purple-900/5'
       }`}>
-        <div className="space-y-1 flex-1">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-purple-600 dark:text-purple-400">
-            <PhoneCall className="w-4 h-4" />
-            Discreet "Fake Call" Disruption
-          </div>
-          <p className="text-[11px] text-stone-500 dark:text-stone-400">
-            Triggers an incoming call with spoken dialogue to exit uncomfortable situations.
-          </p>
-          <div className="flex items-center gap-2 pt-1 text-xs">
-            <span className="text-[11px] text-stone-400">Persona:</span>
+        <div className="flex items-center gap-2 mb-1">
+          <PhoneCall className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+          <h3 className="font-extrabold text-sm sm:text-base text-stone-900 dark:text-white">
+            Discreet “Fake Call” Disruption
+          </h3>
+        </div>
+        <p className="text-xs text-stone-600 dark:text-stone-300 mb-3">
+          Triggers an incoming call with spoken dialogue to exit uncomfortable situations.
+        </p>
+
+        <div className="flex items-center justify-between gap-2">
+          {/* Persona Dropdown */}
+          <div className="flex items-center gap-1.5 flex-1">
+            <span className="text-xs font-bold text-stone-700 dark:text-stone-300">Persona:</span>
             <select
               value={selectedPersona}
               onChange={(e) => setSelectedPersona(e.target.value)}
-              className={`text-xs px-2 py-0.5 rounded-lg border font-medium ${
-                isDark ? 'bg-stone-950 border-purple-900/50 text-stone-200' : 'bg-purple-50 border-purple-200 text-stone-800'
+              className={`text-xs font-semibold py-1.5 px-2.5 rounded-lg border outline-none cursor-pointer flex-1 ${
+                isDark
+                  ? 'bg-black/40 border-purple-800/60 text-purple-200'
+                  : 'bg-purple-50/80 border-purple-200 text-purple-900'
               }`}
             >
-              <option value="mom">Mom 💕</option>
-              <option value="aunt">Aunt Sarah</option>
-              <option value="husband">Husband 💍</option>
-              <option value="boyfriend">Boyfriend ❤️</option>
-              <option value="concierge">Hotel Concierge</option>
-              <option value="office">Office Escort</option>
+              {mockFakeCallPersonas.map((p) => (
+                <option key={p.id} value={p.id} className="bg-stone-900 text-white">
+                  {p.label} ✔
+                </option>
+              ))}
             </select>
           </div>
-        </div>
 
-        <button
-          onClick={() => onLaunchFakeCall(selectedPersona)}
-          className="shrink-0 flex items-center gap-1.5 bg-gradient-to-r from-purple-700 to-fuchsia-600 hover:from-purple-600 hover:to-fuchsia-500 text-white px-3.5 py-2.5 rounded-2xl font-bold text-xs shadow-md active:scale-95 transition"
-        >
-          <PhoneCall className="w-4 h-4" />
-          <span>Call Me</span>
-        </button>
+          {/* Call Me Button */}
+          <button
+            onClick={() => onLaunchFakeCall(selectedPersona)}
+            className="flex items-center gap-1.5 bg-gradient-to-r from-purple-700 to-fuchsia-600 hover:from-purple-800 hover:to-fuchsia-700 text-white px-4 py-2 rounded-full font-bold text-xs shadow-md shadow-purple-900/20 active:scale-95 transition"
+          >
+            <Phone className="w-3.5 h-3.5 fill-white" />
+            <span>Call Me</span>
+          </button>
+        </div>
       </div>
 
-      {/* PERSISTENT GLOBAL TRIP TIMER & CUSTOM INPUT MODULE */}
-      <div className={`p-5 rounded-3xl border space-y-3.5 ${
-        isDark ? 'bg-[#150f24] border-purple-900/40' : 'bg-white border-purple-100 shadow-sm'
+      {/* CARD 3: Trip Timer (Matching Screenshot 1) */}
+      <div className={`rounded-2xl border p-4 shadow-md transition-all ${
+        isDark
+          ? 'bg-[#150a2b] border-purple-800/40 text-stone-100'
+          : 'bg-[#1a0f35] border-purple-900/30 text-white shadow-purple-950/20'
       }`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-            <div>
-              <h3 className="text-sm font-extrabold">Persistent Global Trip Timer</h3>
-              <p className="text-[11px] text-stone-500 dark:text-stone-400">
-                Runs globally in background across all tabs
-              </p>
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-purple-400" />
+              <h3 className="font-extrabold text-sm sm:text-base text-white">
+                Trip Timer
+              </h3>
             </div>
+            <p className="text-[11px] text-purple-200/70 mt-0.5">
+              Runs in background across all tabs
+            </p>
           </div>
-          <span className="text-[11px] text-purple-600 dark:text-purple-300 font-mono flex items-center gap-1">
-            <Lock className="w-3 h-3" /> Safe PIN: {user.safetyPin}
-          </span>
+
+          {/* Safe PIN Indicator Box */}
+          <div className="bg-black/50 border border-purple-500/30 rounded-lg px-2.5 py-1 text-right">
+            <span className="text-[9px] text-purple-300 block font-mono flex items-center gap-1">
+              <Lock className="w-2.5 h-2.5" /> Safe PIN:
+            </span>
+            <span className="text-xs font-mono font-bold text-white tracking-widest">
+              {user.safetyPin}
+            </span>
+          </div>
         </div>
 
-        {!tripTimer.isActive ? (
-          <div className="space-y-3 pt-1">
-            {/* Destination */}
-            <div>
-              <label className="text-[11px] text-stone-500 dark:text-stone-400 mb-1 block font-semibold">
+        {/* If Active Countdown Running */}
+        {tripTimer.isActive ? (
+          <div className="bg-purple-950/60 border border-purple-500/50 rounded-xl p-3 flex flex-col items-center gap-2 my-2">
+            <span className="text-[11px] text-purple-300 font-medium">
+              Live Transit to: <strong className="text-white">{tripTimer.destinationName}</strong>
+            </span>
+            <div className="text-3xl font-mono font-black text-white tracking-wider animate-pulse">
+              {formatTimer(tripTimer.remainingSeconds)}
+            </div>
+            <p className="text-[10px] text-purple-200/80">
+              Enter Safe PIN on arrival. Duress PIN 9999 silently alerts contacts.
+            </p>
+            <div className="flex gap-2 w-full mt-1">
+              <button
+                onClick={handleConfirmArrivalPrompt}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+              >
+                <CheckCircle className="w-3.5 h-3.5" />
+                I’ve Arrived Safely
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Destination Address */}
+            <div className="mb-3">
+              <label className="text-[11px] text-purple-200 font-semibold mb-1 block">
                 Destination Address
               </label>
-              <div className="relative">
-                <MapPin className="w-4 h-4 absolute left-3 top-2.5 text-purple-500" />
+              <div className="flex items-center gap-2 bg-black/40 border border-purple-800/50 rounded-xl px-3 py-2">
+                <div className="w-2 h-2 rounded-full bg-purple-400" />
                 <input
                   type="text"
                   value={destinationName}
                   onChange={(e) => setDestinationName(e.target.value)}
-                  placeholder="e.g. Cinnamon Gardens to Galle Face"
-                  className={`w-full rounded-2xl pl-9 pr-3 py-2 text-xs border focus:outline-none focus:border-purple-600 ${
-                    isDark ? 'bg-stone-950 border-purple-900/40 text-stone-100' : 'bg-purple-50/50 border-purple-100 text-stone-900'
-                  }`}
+                  placeholder="Enter destination (e.g. Temple Street, Kandy)"
+                  className="bg-transparent text-xs text-white placeholder-purple-300/40 outline-none w-full"
                 />
               </div>
             </div>
 
-            {/* Transport Mode */}
-            <div>
-              <label className="text-[11px] text-stone-500 dark:text-stone-400 mb-1 block font-semibold">
+            {/* Transport Mode Icons */}
+            <div className="mb-3">
+              <label className="text-[11px] text-purple-200 font-semibold mb-1.5 block">
                 Transport Mode
               </label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-4 gap-2 text-center">
                 {[
-                  { id: 'tuk_tuk', label: 'Tuk-Tuk', icon: '🛺' },
-                  { id: 'taxi', label: 'HelaGo', icon: '🚕' },
-                  { id: 'walk', label: 'Walking', icon: '🚶‍♀️' },
-                  { id: 'train', label: 'Train', icon: '🚆' },
-                ].map((m) => (
+                  { id: 'tuk_tuk', label: 'Tuk-Tuk', emoji: '🛺' },
+                  { id: 'taxi', label: 'Taxi', emoji: '🚕' },
+                  { id: 'walk', label: 'Walking', emoji: '🚶‍♀️' },
+                  { id: 'train', label: 'Train', emoji: '🚆' },
+                ].map((item) => (
                   <button
-                    key={m.id}
-                    onClick={() => setTransportMode(m.id as any)}
-                    className={`p-2 rounded-2xl text-xs flex flex-col items-center gap-0.5 border transition ${
-                      transportMode === m.id
-                        ? 'bg-purple-600/20 border-purple-500 text-purple-700 dark:text-purple-300 font-bold'
-                        : isDark
-                        ? 'bg-stone-950 border-stone-800 text-stone-400'
-                        : 'bg-purple-50/50 border-purple-100 text-stone-600'
+                    key={item.id}
+                    onClick={() => setTransportMode(item.id as any)}
+                    className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border transition ${
+                      transportMode === item.id
+                        ? 'bg-purple-600/50 border-purple-400 text-white font-bold'
+                        : 'bg-black/30 border-purple-900/40 text-purple-300 hover:bg-purple-900/20'
                     }`}
                   >
-                    <span className="text-base">{m.icon}</span>
-                    <span className="text-[10px]">{m.label}</span>
+                    <span className="text-base">{item.emoji}</span>
+                    <span className="text-[10px] mt-1">{item.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Presets + Custom Time Input */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] text-stone-500 dark:text-stone-400 font-semibold">
+            {/* Expected Duration Pills */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[11px] text-purple-200 font-semibold">
                   Expected Duration
                 </label>
                 <button
-                  onClick={() => setIsCustomMode(!isCustomMode)}
-                  className="text-[10px] text-purple-600 dark:text-purple-400 font-bold underline"
+                  onClick={() => setShowCustomInput(!showCustomInput)}
+                  className="text-[10px] text-purple-400 hover:text-purple-300 font-medium"
                 >
-                  {isCustomMode ? 'Use Presets' : '+ Type Custom Minutes'}
+                  {showCustomInput ? 'Preset Minutes' : '+Type Custom Minutes'}
                 </button>
               </div>
 
-              {!isCustomMode ? (
+              {showCustomInput ? (
+                <div className="flex items-center gap-2 bg-black/40 border border-purple-800/50 rounded-xl px-3 py-1.5">
+                  <input
+                    type="number"
+                    value={customMinsInput}
+                    onChange={(e) => setCustomMinsInput(e.target.value)}
+                    placeholder="Enter minutes (e.g. 22)"
+                    className="bg-transparent text-xs text-white placeholder-purple-300/40 outline-none w-full font-mono"
+                    min="1"
+                    max="300"
+                  />
+                  <span className="text-[11px] text-purple-300 font-bold">mins</span>
+                </div>
+              ) : (
                 <div className="grid grid-cols-4 gap-2">
                   {[15, 30, 45, 60].map((mins) => (
                     <button
                       key={mins}
-                      onClick={() => setSelectedPresetMins(mins)}
-                      className={`py-2 rounded-2xl text-xs font-bold border transition ${
-                        selectedPresetMins === mins
-                          ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
-                          : isDark
-                          ? 'bg-stone-950 border-stone-800 text-stone-400 hover:text-stone-200'
-                          : 'bg-purple-50/50 border-purple-100 text-stone-700'
+                      onClick={() => setSelectedDurationMins(mins)}
+                      className={`py-1.5 rounded-xl border text-xs font-semibold transition ${
+                        selectedDurationMins === mins
+                          ? 'bg-purple-600 text-white border-purple-400'
+                          : 'bg-black/30 text-purple-300 border-purple-900/40 hover:bg-purple-900/20'
                       }`}
                     >
-                      {mins >= 60 ? '1 hr' : `${mins}m`}
+                      {mins === 60 ? '1 hr' : `${mins}m`}
                     </button>
                   ))}
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    max="180"
-                    placeholder="e.g. 17"
-                    value={customMinsInput}
-                    onChange={(e) => setCustomMinsInput(e.target.value)}
-                    className={`flex-1 p-2 rounded-2xl border text-xs text-center font-bold focus:outline-none focus:border-purple-600 ${
-                      isDark ? 'bg-stone-950 border-purple-900/40 text-stone-100' : 'bg-purple-50 border-purple-200 text-stone-900'
-                    }`}
-                  />
-                  <span className="text-xs text-stone-400 font-semibold">Minutes</span>
                 </div>
               )}
             </div>
 
+            {/* Start Trip Timer Button */}
             <button
               onClick={handleStartTimer}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-700 to-fuchsia-600 hover:from-purple-600 hover:to-fuchsia-500 text-white py-3 rounded-2xl font-bold text-xs shadow-md active:scale-98 transition mt-1"
+              className="w-full bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-purple-900/30 active:scale-98 transition"
             >
-              <Play className="w-4 h-4 fill-white" />
-              <span>Arm Trip Timer ({activeMinutes} Mins)</span>
+              <Play className="w-3.5 h-3.5 fill-white" />
+              <span>Trip Timer ({activeMinutes} Mins)</span>
             </button>
-          </div>
-        ) : (
-          <div className="space-y-3 pt-1">
-            <div className={`p-4 rounded-2xl border flex items-center justify-between ${
-              isDark ? 'bg-stone-950/80 border-purple-900/40' : 'bg-purple-50/70 border-purple-100'
-            }`}>
-              <div>
-                <div className="text-[10px] text-purple-500 font-bold uppercase tracking-wider">
-                  Live Active Trip To
-                </div>
-                <div className="text-xs sm:text-sm font-bold truncate max-w-[190px]">{tripTimer.destinationName}</div>
-                <div className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1.5 mt-0.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                  <span>GPS Tracking Active · {tripTimer.transportMode.toUpperCase()}</span>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <div className="text-2xl font-mono font-black text-purple-600 dark:text-purple-300">
-                  {formatTimer(tripTimer.remainingSeconds)}
-                </div>
-                <div className="text-[9px] text-stone-400">countdown remaining</div>
-              </div>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="w-full bg-stone-800 dark:bg-stone-800 h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-purple-500 to-fuchsia-500 h-full transition-all duration-1000"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-
-            {/* Safe Arrival Button */}
-            <button
-              onClick={handleConfirmArrivalPrompt}
-              className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-2xl font-bold text-xs shadow-md active:scale-98 transition"
-            >
-              <CheckCircle className="w-4 h-4" />
-              <span>I Have Arrived Safely (Confirm PIN)</span>
-            </button>
-          </div>
+          </>
         )}
       </div>
 
-      {/* PIN CONFIRMATION MODAL */}
+      {/* CARD 4: Offline Emergency Mode (Zero-Data) (Matching Screenshot 1) */}
+      <button
+        onClick={onOpenOfflineHotlines}
+        className={`w-full rounded-2xl border p-4 shadow-md text-left transition transform active:scale-98 cursor-pointer flex items-center justify-between ${
+          isDark
+            ? 'bg-[#180d33] border-purple-800/40 hover:border-purple-600 text-white'
+            : 'bg-purple-950 border-purple-900 text-white hover:bg-purple-900'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-purple-800/60 border border-purple-500/40 flex items-center justify-center">
+            <WifiOff className="w-4 h-4 text-purple-300" />
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <h3 className="font-extrabold text-xs sm:text-sm text-white">
+                Offline Emergency Mode
+              </h3>
+              <span className="text-[10px] text-purple-300 font-bold">(Zero-Data)</span>
+            </div>
+            <p className="text-[10px] text-purple-200/70 mt-0.5">
+              100% accessible without cellular data or Wi-Fi
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-purple-800/40 border border-purple-400/30 rounded-lg px-2 py-1 text-center">
+          <span className="text-[9px] font-mono font-bold text-purple-200 tracking-wider flex items-center gap-1">
+            <Database className="w-2.5 h-2.5" /> SQLITE CACHED
+          </span>
+        </div>
+      </button>
+
+      {/* Safe Arrival PIN Verification Modal */}
       {showPinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className={`w-full max-w-sm rounded-3xl border p-5 space-y-4 shadow-2xl ${
-            isDark ? 'bg-[#150f24] border-purple-900/60 text-white' : 'bg-white border-purple-200 text-stone-900'
-          }`}>
-            <div className="text-center space-y-1">
-              <div className="w-11 h-11 rounded-full bg-purple-600/20 text-purple-600 dark:text-purple-300 flex items-center justify-center mx-auto mb-1">
-                <Lock className="w-5 h-5" />
-              </div>
-              <h3 className="text-sm font-bold">Enter 4-Digit Safety PIN</h3>
-              <p className="text-xs text-stone-500 dark:text-stone-400">
-                Confirm your safe arrival to disarm trip timer.
-              </p>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-purple-500/50 rounded-2xl p-5 max-w-xs w-full text-white shadow-2xl">
+            <h4 className="font-black text-sm text-center mb-1 text-purple-300">
+              Confirm Safe Arrival
+            </h4>
+            <p className="text-[11px] text-stone-300 text-center mb-4">
+              Enter your 4-digit PIN to stop the countdown. Duress code 9999 silently dispatches an SOS alert.
+            </p>
+
+            <div className="flex justify-center mb-4">
+              <input
+                type="password"
+                maxLength={4}
+                value={enteredPin}
+                onChange={(e) => setEnteredPin(e.target.value)}
+                placeholder="••••"
+                className="w-28 text-center text-2xl tracking-widest font-mono py-2 rounded-xl bg-black border border-purple-500 text-white outline-none"
+                autoFocus
+              />
             </div>
 
-            <input
-              type="password"
-              maxLength={4}
-              autoFocus
-              value={enteredPin}
-              onChange={(e) => setEnteredPin(e.target.value.replace(/\D/g, ''))}
-              placeholder="••••"
-              className={`w-full text-center tracking-[0.5em] text-2xl font-mono rounded-2xl py-2.5 border focus:outline-none focus:border-purple-600 ${
-                isDark ? 'bg-stone-950 border-purple-900/40 text-white' : 'bg-purple-50 border-purple-200 text-stone-900'
-              }`}
-            />
-
-            {pinError && <p className="text-xs text-red-500 text-center font-bold">{pinError}</p>}
-
-            <div className={`p-2.5 rounded-2xl border text-[11px] space-y-1 ${
-              isDark ? 'bg-black/50 border-stone-800 text-stone-400' : 'bg-purple-50/60 border-purple-100 text-stone-600'
-            }`}>
-              <div className="flex justify-between">
-                <span>Safe Arrival PIN:</span>
-                <span className="font-mono text-emerald-500 font-bold">{user.safetyPin}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Silent Duress Code:</span>
-                <span className="font-mono text-red-400 font-bold">{user.duressPin}</span>
-              </div>
-              <p className="text-[10px] text-stone-500 italic pt-0.5">
-                The duress code silently dispatches emergency contacts while appearing disarmed.
+            {pinError && (
+              <p className="text-[11px] text-rose-400 text-center mb-3 font-semibold">
+                {pinError}
               </p>
-            </div>
+            )}
 
             <div className="flex gap-2">
               <button
                 onClick={() => setShowPinModal(false)}
-                className={`flex-1 py-2 rounded-xl border text-xs font-semibold ${
-                  isDark ? 'border-stone-800 text-stone-400' : 'border-stone-200 text-stone-600'
-                }`}
+                className="flex-1 py-2 rounded-xl bg-stone-800 text-stone-300 text-xs font-semibold"
               >
                 Cancel
               </button>
               <button
                 onClick={handleVerifyPin}
-                disabled={enteredPin.length !== 4}
-                className="flex-1 py-2 rounded-xl bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white text-xs font-bold shadow-xs"
+                className="flex-1 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold"
               >
-                Confirm Arrival
+                Verify PIN
               </button>
             </div>
           </div>

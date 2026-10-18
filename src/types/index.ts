@@ -63,6 +63,35 @@ export interface MapPOI {
   stockedProducts?: string[];
 }
 
+export interface AreaArticle {
+  id: string;
+  title: string;
+  subtitle: string;
+  destinationCity: string;
+  category: string;
+  heroImage: string;
+  rating: number;
+  reviewsCount: number;
+  readTime: string;
+  difficulty: 'Easy' | 'Moderate' | 'Challenging';
+  duration: string;
+  bestTimeOfDay: string;
+  entryFee: string;
+  soloFemaleSafetyRating: string;
+  overview: string;
+  keySafetyTips: string[];
+  highlights: string[];
+  photos: string[];
+  travelerReviews: {
+    author: string;
+    avatar: string;
+    country: string;
+    rating: number;
+    comment: string;
+    date: string;
+  }[];
+}
+
 export interface EmergencyHotlineData {
   country: string;
   police: string;
@@ -100,6 +129,8 @@ export interface CommunityPost {
   destinationCity: string;
   startDate: string;
   endDate: string;
+  startTime?: string;
+  endTime?: string;
   budgetTier: '$' | '$$' | '$$$';
   transportMode: 'HelaGo Cab' | 'Train' | 'Tuk-Tuk' | 'Shared Van' | 'Walking';
   activityTitle: string;
@@ -112,7 +143,7 @@ export interface CommunityPost {
 export interface SafeStay {
   stayId: string;
   name: string;
-  type: 'Boutique Villa' | 'Female-Only Dorm' | 'Eco Surf Lodge' | 'Heritage Guesthouse';
+  type: 'Boutique Villa' | 'Female-Only Dorm' | 'Eco Surf Lodge' | 'Heritage Guesthouse' | 'City Hotel';
   city: string;
   location: string;
   coordinates: { lat: number; lng: number };
@@ -120,10 +151,20 @@ export interface SafeStay {
   priceUSD: number;
   rating: number;
   reviewsCount: number;
+  stars: number;
   isPinkShieldVerified: boolean;
   safetyAmenities: string[];
+  generalAmenities: string[];
   unlitAreaWarning?: string;
+  dealTag?: string;
   images: string[];
+  safetyIndexes: {
+    securityStaff: number; // 0-10
+    femaleOnlyFloors: boolean;
+    smartKeycards: boolean;
+    cctvMonitoring: boolean;
+    streetLighting: number; // 0-10
+  };
   reviews: { author: string; avatar: string; rating: number; comment: string; date: string }[];
   kokoMonthlyLKR: number;
   mintpayMonthlyLKR: number;
@@ -203,7 +244,7 @@ export interface DualTranslation {
   sinhalaPhonetic: string;
   tamilText: string;
   tamilPhonetic: string;
-  category?: 'medical' | 'danger' | 'directions' | 'general';
+  category?: 'medical' | 'danger' | 'directions' | 'general' | 'transport' | 'washroom';
 }
 
 export interface FakeCallPersona {
@@ -214,7 +255,13 @@ export interface FakeCallPersona {
   relationship: string;
   voicePitch: number;
   voiceRate: number;
-  dialogueScript: { speaker: string; text: string; spokenText: string }[];
+  totalDurationSeconds: number;
+  dialogueScript: {
+    timeOffsetSeconds: number; // When this turn occurs (e.g. 0s, 12s, 24s, 38s, 50s)
+    speaker: string;
+    text: string;
+    spokenText: string;
+  }[];
 }
 
 export interface ChatMessage {
@@ -235,4 +282,3 @@ export interface PartnerStats {
   averageReviewScore: number;
   femaleDriverUtilization: string;
 }
-

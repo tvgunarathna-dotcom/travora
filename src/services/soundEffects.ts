@@ -1,7 +1,8 @@
 /**
  * TRAVORA Sound Synthesizer & Speech Engine
- * Web Audio API synthesizer for ringtones, siren alarms, chimes,
- * and Web Speech Synthesis for realistic Fake Call voice dialogue & emergency translations.
+ * Web Audio API synthesizer for discreet ringtones, gentle chimes,
+ * and Web Speech Synthesis for realistic Fake Call voice dialogue.
+ * (SOS siren alarm sound has been removed per safety specifications)
  */
 
 class SoundSynthesizer {
@@ -129,53 +130,36 @@ class SoundSynthesizer {
   }
 
   /**
-   * Loud Audible Alarm for SOS (only if not in Silent Mode)
+   * Loud Audible Alarm for SOS has been completely disabled per user requirement:
+   * "Remove SOS alarms sound only."
    */
-  playSirenAlarm(durationMs: number = 3000) {
-    const ctx = this.getContext();
-    if (!ctx) return;
-
-    try {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const now = ctx.currentTime;
-
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(700, now);
-      osc.frequency.linearRampToValueAtTime(1100, now + 0.4);
-      osc.frequency.linearRampToValueAtTime(700, now + 0.8);
-      osc.frequency.linearRampToValueAtTime(1100, now + 1.2);
-      osc.frequency.linearRampToValueAtTime(700, now + 1.6);
-      osc.frequency.linearRampToValueAtTime(1100, now + 2.0);
-
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + (durationMs / 1000));
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(now);
-      osc.stop(now + (durationMs / 1000));
-    } catch (e) {
-      console.warn('Alarm audio error:', e);
-    }
+  playSirenAlarm(_durationMs: number = 3000) {
+    // Intentionally silent - discreet emergency broadcast with zero audible alarm
+    return;
   }
 
   /**
-   * Speak persona voice dialogue in realistic caller pitch and cadence
+   * Speak persona voice dialogue in realistic caller pitch and cadence for up to 1 minute
    */
   speakPersonaDialogue(text: string, pitch: number = 1.0, rate: number = 1.0) {
-    if ('speechSynthesis' in window) {
+    if ('speechSynthesis' in window && text && text.trim()) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = Math.max(0.7, Math.min(1.2, rate));
-      utterance.pitch = Math.max(0.6, Math.min(1.6, pitch));
-      
+      utterance.rate = Math.max(0.75, Math.min(1.15, rate));
+      utterance.pitch = Math.max(0.7, Math.min(1.4, pitch));
+
       const voices = window.speechSynthesis.getVoices();
       if (voices.length > 0) {
-        // Prefer natural English voices
-        const femaleVoice = voices.find((v) => v.lang.includes('en') && (v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Victoria')));
-        const maleVoice = voices.find((v) => v.lang.includes('en') && (v.name.includes('Male') || v.name.includes('Alex') || v.name.includes('Daniel')));
+        const femaleVoice = voices.find(
+          (v) =>
+            v.lang.includes('en') &&
+            (v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Victoria') || v.name.includes('Karen'))
+        );
+        const maleVoice = voices.find(
+          (v) =>
+            v.lang.includes('en') &&
+            (v.name.includes('Male') || v.name.includes('Alex') || v.name.includes('Daniel') || v.name.includes('Fred'))
+        );
         if (pitch < 0.9 && maleVoice) {
           utterance.voice = maleVoice;
         } else if (femaleVoice) {
@@ -190,19 +174,6 @@ class SoundSynthesizer {
   stopSpeaking() {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-    }
-  }
-
-  /**
-   * Speak phonetic translation using Web Speech API
-   */
-  speakPhrase(text: string, lang: string = 'en') {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.85; // Clearer for language comprehension
-      utterance.pitch = 1.0;
-      window.speechSynthesis.speak(utterance);
     }
   }
 }

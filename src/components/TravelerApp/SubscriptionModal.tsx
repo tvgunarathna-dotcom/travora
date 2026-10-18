@@ -250,23 +250,27 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
               <p className="text-[11px] text-purple-500 font-semibold">Cancel anytime · 7-day free trial</p>
             </div>
 
-            {/* Premium Perks Callouts */}
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center gap-2">
-                <Download className="w-4 h-4 text-purple-500 shrink-0" />
-                <span>High-resolution <strong>Offline Vector Maps</strong> & hygiene pin downloads</span>
+            {/* Premium Perks Callouts matching user's exact specification */}
+            <div className="space-y-2.5 text-xs">
+              <div className="flex items-center gap-2.5 p-2 rounded-xl bg-purple-950/30 border border-purple-800/40">
+                <Download className="w-4 h-4 text-purple-400 shrink-0" />
+                <span><strong>Offline maps</strong> (High-res vector maps & safe zone overlays)</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-purple-500 shrink-0" />
-                <span>Unlimited <strong>Emergency Contacts (&gt;4 contacts)</strong> with auto-dispatch</span>
+              <div className="flex items-center gap-2.5 p-2 rounded-xl bg-purple-950/30 border border-purple-800/40">
+                <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                <span><strong>Priority booking</strong> on verified hostels & female-escort guides</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Percent className="w-4 h-4 text-purple-500 shrink-0" />
-                <span><strong>10% Exclusive Discount</strong> on all verified stays and local guides</span>
+              <div className="flex items-center gap-2.5 p-2 rounded-xl bg-purple-950/30 border border-purple-800/40">
+                <Phone className="w-4 h-4 text-purple-400 shrink-0" />
+                <span><strong>More emergency contacts</strong> (Store unlimited contacts beyond 4)</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-purple-500 shrink-0" />
-                <span>Unlimited 24/7 <strong>Serena AI Voice Chat</strong> with real-time audio playback</span>
+              <div className="flex items-center gap-2.5 p-2 rounded-xl bg-purple-950/30 border border-purple-800/40">
+                <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
+                <span><strong>Share live location with loved ones on the go</strong></span>
+              </div>
+              <div className="flex items-center gap-2.5 p-2 rounded-xl bg-purple-950/30 border border-purple-800/40">
+                <Percent className="w-4 h-4 text-purple-400 shrink-0" />
+                <span><strong>Exclusive discounts</strong> on partner stays and SLTDA tours</span>
               </div>
             </div>
 

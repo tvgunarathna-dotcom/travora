@@ -2,66 +2,48 @@ import React, { useState } from 'react';
 import {
   WifiOff,
   Phone,
-  Volume2,
-  AlertTriangle,
-  HeartPulse,
-  Compass,
-  Sparkles,
-  Download,
-  CheckCircle,
-  Globe,
-  Share2,
+  Database,
+  Search,
   Languages,
-  Send,
-  Lock,
+  CheckCircle,
+  AlertTriangle,
+  ArrowLeft,
 } from 'lucide-react';
-import { EmergencyHotlineData, DualTranslation } from '../../types';
-import { fallbackHotlines, dualTranslationsDictionary } from '../../data/mockData';
-import { soundEffects } from '../../services/soundEffects';
+import { DualTranslation } from '../../types';
+import { dualTranslationsDictionary } from '../../data/mockData';
 import { apiService } from '../../services/api';
 
 interface OfflineEmergencyScreenProps {
-  currentCountry: string;
-  onSelectCountry: (code: string) => void;
-  onTriggerUpgradePrompt: () => void;
+  currentCountry?: string;
+  onSelectCountry?: (code: string) => void;
+  onTriggerUpgradePrompt?: () => void;
+  onBack?: () => void;
   theme: 'dark' | 'light';
 }
 
 export const OfflineEmergencyScreen: React.FC<OfflineEmergencyScreenProps> = ({
-  currentCountry,
-  onSelectCountry,
-  onTriggerUpgradePrompt,
+  onBack,
   theme,
 }) => {
   const isDark = theme === 'dark';
-  const [selectedCategory, setSelectedCategory] = useState<'all' | 'danger' | 'medical' | 'general' | 'directions'>('all');
-  const [speakingKey, setSpeakingKey] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<'all' | 'danger' | 'medical' | 'washroom' | 'transport'>('all');
 
-  // Custom Phrase Translator State (Sinhala & Tamil)
+  // Custom Phrase Translator State (Accurate Sinhala & Tamil with NO voice button)
   const [customInputText, setCustomInputText] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
   const [customTranslations, setCustomTranslations] = useState<DualTranslation[]>([]);
-
-  const hotline: EmergencyHotlineData = fallbackHotlines[currentCountry] || fallbackHotlines['LK'];
 
   const filteredPhrases = dualTranslationsDictionary.filter((p) => {
     if (selectedCategory === 'all') return true;
     return p.category === selectedCategory;
   });
 
-  const handleSpeak = (text: string, key: string) => {
-    setSpeakingKey(key);
-    soundEffects.speakPhrase(text, 'en');
-    setTimeout(() => {
-      setSpeakingKey(null);
-    }, 2000);
-  };
-
-  const handleTranslateCustom = async () => {
+  const handleTranslateCustom = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!customInputText.trim() || isTranslating) return;
     setIsTranslating(true);
     try {
-      const res = await apiService.translateCustomPhrase(customInputText);
+      const res = await apiService.translateCustomPhrase(customInputText.trim());
       if (res.success && res.translation) {
         setCustomTranslations([res.translation, ...customTranslations]);
         setCustomInputText('');
@@ -74,256 +56,232 @@ export const OfflineEmergencyScreen: React.FC<OfflineEmergencyScreenProps> = ({
   };
 
   return (
-    <div className="space-y-4 pb-14 font-['Plus_Jakarta_Sans',sans-serif]">
-      {/* Offline Status & Download Trigger */}
-      <div className={`p-4 rounded-3xl border space-y-3 ${
-        isDark ? 'bg-[#150f24] border-purple-900/40' : 'bg-white border-purple-100 shadow-sm'
-      }`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-purple-600/20 text-purple-600 dark:text-purple-300">
-              <WifiOff className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-sm sm:text-base font-extrabold tracking-tight">
-                Offline Emergency Mode (Zero-Data)
-              </h2>
-              <p className="text-[11px] text-stone-500 dark:text-stone-400">
-                100% accessible without cellular data or Wi-Fi
-              </p>
-            </div>
-          </div>
+    <div className="flex flex-col gap-4 p-3 sm:p-4 pb-20 select-none">
+      {/* Back button if available */}
+      {onBack && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onBack}
+            className="p-2 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 hover:bg-purple-200 transition"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <span className="text-xs font-bold text-stone-500">Back to Safety Dashboard</span>
+        </div>
+      )}
 
-          <span className="text-[10px] bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full font-bold">
-            SQLITE CACHED
+      {/* TOP HEADER CARD: Offline Emergency Mode (Zero-Data) (Matching Screenshot 8) */}
+      <div className={`rounded-2xl border p-4 shadow-md flex items-center justify-between ${
+        isDark ? 'bg-[#180d33] border-purple-800/40 text-white' : 'bg-purple-950 border-purple-900 text-white'
+      }`}>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-purple-800/60 border border-purple-500/40 flex items-center justify-center shrink-0">
+            <WifiOff className="w-4 h-4 text-purple-300" />
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <h2 className="font-black text-sm sm:text-base text-white">
+                Offline Emergency Mode
+              </h2>
+              <span className="text-xs text-purple-300 font-bold">(Zero-Data)</span>
+            </div>
+            <p className="text-[10px] text-purple-200/70 mt-0.5">
+              100% accessible without cellular data or Wi-Fi
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-purple-800/40 border border-purple-400/30 rounded-lg px-2 py-1 text-center shrink-0">
+          <span className="text-[9px] font-mono font-bold text-purple-200 tracking-wider flex items-center gap-1">
+            <Database className="w-2.5 h-2.5" /> SQLITE CACHED
           </span>
         </div>
-
-        {/* Offline Vector Map Download Trigger (Freemium Gated) */}
-        <div className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
-          isDark ? 'bg-stone-950/80 border-purple-900/40' : 'bg-purple-50/60 border-purple-100'
-        }`}>
-          <div>
-            <div className="font-bold text-xs flex items-center gap-1.5">
-              <Download className="w-4 h-4 text-purple-500" />
-              Download Offline Vector Map (Sri Lanka)
-            </div>
-            <p className="text-[11px] text-stone-500 dark:text-stone-400">
-              High-res offline GPS navigation & safe zone overlays (140 MB)
-            </p>
-          </div>
-
-          <button
-            onClick={onTriggerUpgradePrompt}
-            className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-white text-[11px] font-bold shadow-xs transition"
-          >
-            <Lock className="w-3 h-3" />
-            <span>Download (Premium)</span>
-          </button>
-        </div>
-
-        {/* Country Selector */}
-        <div className="flex items-center gap-1.5 overflow-x-auto text-xs pt-1">
-          <span className="text-[11px] text-stone-500 dark:text-stone-400 shrink-0">Hotline Country:</span>
-          {Object.entries(fallbackHotlines).map(([code, data]) => (
-            <button
-              key={code}
-              onClick={() => onSelectCountry(code)}
-              className={`px-2.5 py-1 rounded-xl shrink-0 font-semibold border transition ${
-                currentCountry === code
-                  ? 'bg-purple-700 text-white border-purple-600 shadow-xs'
-                  : isDark
-                  ? 'bg-stone-900 border-purple-900/30 text-stone-400'
-                  : 'bg-purple-50 border-purple-100 text-purple-900'
-              }`}
-            >
-              {data.country.split(' ')[0]} ({code})
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* Emergency Hotlines Directory */}
-      <div className={`p-4 rounded-3xl border space-y-3 ${
-        isDark ? 'bg-[#150f24] border-purple-900/40' : 'bg-white border-purple-100 shadow-sm'
+      {/* SECTION 1: DIRECT HOTLINES: SRI LANKA (Matching Screenshot 8) */}
+      <div className={`rounded-2xl border p-4 shadow-sm ${
+        isDark ? 'bg-[#150a28] border-purple-800/40 text-white' : 'bg-white border-purple-100 text-stone-900 shadow-xs'
       }`}>
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
-            <Phone className="w-4 h-4" />
-            Direct Hotlines: {hotline.country}
-          </h3>
-          <span className="text-[11px] text-stone-400">Tap to call</span>
+        <div className="flex items-center justify-between border-b border-purple-900/30 pb-2 mb-3">
+          <div className="flex items-center gap-1.5 text-purple-600 dark:text-purple-300 text-xs font-bold uppercase tracking-wider">
+            <Phone className="w-3.5 h-3.5" />
+            <span>Direct Hotlines: Sri Lanka</span>
+          </div>
+          <span className="text-[10px] text-stone-400 font-semibold">Tap to call</span>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="grid grid-cols-2 gap-2.5">
+          {/* National Police */}
           <a
-            href={`tel:${hotline.police.split(' ')[0]}`}
-            className={`p-3 rounded-2xl border flex items-center justify-between ${
-              isDark ? 'bg-stone-950 border-stone-800' : 'bg-purple-50/40 border-purple-100'
-            }`}
+            href="tel:119"
+            className="p-3 rounded-xl border border-purple-900/30 bg-black/20 hover:bg-purple-950/40 flex items-center justify-between transition"
           >
             <div>
-              <div className="text-[10px] text-stone-400 uppercase font-semibold">National Police</div>
-              <div className="text-base font-black font-mono">{hotline.police}</div>
+              <span className="text-[9px] uppercase tracking-wider text-stone-400 font-bold block">
+                National Police
+              </span>
+              <span className="text-base font-black text-stone-900 dark:text-white">
+                119
+              </span>
             </div>
-            <Phone className="w-4 h-4 text-blue-500" />
+            <div className="w-8 h-8 rounded-full bg-blue-600/20 text-blue-500 flex items-center justify-center">
+              <Phone className="w-4 h-4" />
+            </div>
           </a>
 
+          {/* Tourist Police */}
           <a
-            href={`tel:${hotline.touristPolice.split(' ')[0]}`}
-            className={`p-3 rounded-2xl border flex items-center justify-between ${
-              isDark ? 'bg-stone-950 border-purple-900/40' : 'bg-purple-50/40 border-purple-200'
-            }`}
+            href="tel:1912"
+            className="p-3 rounded-xl border border-purple-900/30 bg-black/20 hover:bg-purple-950/40 flex items-center justify-between transition"
           >
             <div>
-              <div className="text-[10px] text-purple-600 dark:text-purple-400 uppercase font-semibold">Tourist Police</div>
-              <div className="text-base font-black font-mono text-purple-600 dark:text-purple-300">{hotline.touristPolice}</div>
+              <span className="text-[9px] uppercase tracking-wider text-purple-400 font-bold block">
+                Tourist Police
+              </span>
+              <span className="text-base font-black text-purple-600 dark:text-purple-300">
+                1912
+              </span>
             </div>
-            <Phone className="w-4 h-4 text-purple-500" />
+            <div className="w-8 h-8 rounded-full bg-purple-600/20 text-purple-400 flex items-center justify-center">
+              <Phone className="w-4 h-4" />
+            </div>
           </a>
 
+          {/* Free EMS Ambulance */}
           <a
-            href={`tel:${hotline.ambulance.split(' ')[0]}`}
-            className={`p-3 rounded-2xl border flex items-center justify-between ${
-              isDark ? 'bg-stone-950 border-stone-800' : 'bg-purple-50/40 border-purple-100'
-            }`}
+            href="tel:1990"
+            className="p-3 rounded-xl border border-purple-900/30 bg-black/20 hover:bg-purple-950/40 flex items-center justify-between transition"
           >
             <div>
-              <div className="text-[10px] text-stone-400 uppercase font-semibold">Free EMS Ambulance</div>
-              <div className="text-xs font-bold font-mono text-emerald-500 truncate max-w-[100px]">
-                {hotline.ambulance}
-              </div>
+              <span className="text-[9px] uppercase tracking-wider text-stone-400 font-bold block">
+                Free EMS Ambulance
+              </span>
+              <span className="text-xs font-black text-stone-900 dark:text-white block">
+                1990 <span className="text-[9px] font-normal text-stone-400">(Suwa Seriya)</span>
+              </span>
             </div>
-            <HeartPulse className="w-4 h-4 text-emerald-500 shrink-0" />
+            <div className="w-8 h-8 rounded-full bg-emerald-600/20 text-emerald-400 flex items-center justify-center">
+              <Phone className="w-4 h-4" />
+            </div>
           </a>
 
+          {/* Women's Bureau */}
           <a
-            href={`tel:${hotline.womenHelpline.split(' ')[0]}`}
-            className={`p-3 rounded-2xl border flex items-center justify-between ${
-              isDark ? 'bg-stone-950 border-stone-800' : 'bg-purple-50/40 border-purple-100'
-            }`}
+            href="tel:1938"
+            className="p-3 rounded-xl border border-purple-900/30 bg-black/20 hover:bg-purple-950/40 flex items-center justify-between transition"
           >
             <div>
-              <div className="text-[10px] text-stone-400 uppercase font-semibold">Women's Bureau</div>
-              <div className="text-xs font-bold font-mono text-purple-500 truncate max-w-[100px]">
-                {hotline.womenHelpline}
-              </div>
+              <span className="text-[9px] uppercase tracking-wider text-stone-400 font-bold block">
+                Women's Bureau
+              </span>
+              <span className="text-xs font-black text-stone-900 dark:text-white block">
+                1938 <span className="text-[9px] font-normal text-stone-400">(National Committee)</span>
+              </span>
             </div>
-            <Phone className="w-4 h-4 text-purple-500 shrink-0" />
+            <div className="w-8 h-8 rounded-full bg-fuchsia-600/20 text-fuchsia-400 flex items-center justify-center">
+              <Phone className="w-4 h-4" />
+            </div>
           </a>
         </div>
       </div>
 
-      {/* CUSTOM TRANSLATOR TOOL (SINHALA & TAMIL) */}
-      <div className={`p-4 rounded-3xl border space-y-3 ${
-        isDark ? 'bg-[#150f24] border-purple-900/40' : 'bg-white border-purple-100 shadow-sm'
+      {/* SECTION 2: CUSTOM SAFETY TRANSLATOR (Matching Screenshot 8) */}
+      <div className={`rounded-2xl border p-4 shadow-sm ${
+        isDark ? 'bg-[#150a28] border-purple-800/40 text-white' : 'bg-white border-purple-100 text-stone-900 shadow-xs'
       }`}>
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
-              <Languages className="w-4 h-4" />
-              Custom Safety Translator (Sinhala & Tamil)
-            </h3>
-            <p className="text-[11px] text-stone-500 dark:text-stone-400">
-              Type any phrase to translate with phonetics & audio
-            </p>
-          </div>
+        <div className="flex items-center gap-2 mb-1 text-purple-600 dark:text-purple-300 font-bold text-xs uppercase tracking-wider">
+          <Languages className="w-4 h-4" />
+          <span>Custom Safety Translator (Sinhala & Tamil)</span>
         </div>
+        <p className="text-[11px] text-stone-500 dark:text-stone-400 mb-3">
+          Type any phrase to translate with accurate phonetics and native script.
+        </p>
 
-        <div className="flex gap-2">
+        {/* Translation Input & Button */}
+        <form onSubmit={handleTranslateCustom} className="flex gap-2 mb-3">
           <input
             type="text"
             value={customInputText}
             onChange={(e) => setCustomInputText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleTranslateCustom()}
-            placeholder="Type custom medical or safety phrase in English..."
-            className={`flex-1 rounded-2xl px-3.5 py-2.5 text-xs border focus:outline-none focus:border-purple-600 ${
-              isDark ? 'bg-stone-950 border-purple-900/40 text-stone-100' : 'bg-purple-50 border-purple-200 text-stone-900'
+            placeholder="Type custom medical or safety phrase..."
+            className={`flex-1 p-2.5 rounded-xl border text-xs outline-none ${
+              isDark ? 'bg-black/50 border-purple-800 text-white' : 'bg-purple-50/50 border-purple-200 text-stone-900'
             }`}
           />
           <button
-            onClick={handleTranslateCustom}
-            disabled={!customInputText.trim() || isTranslating}
-            className="px-4 py-2.5 rounded-2xl bg-purple-700 hover:bg-purple-600 text-white font-bold text-xs shadow-xs disabled:opacity-50"
+            type="submit"
+            disabled={isTranslating || !customInputText.trim()}
+            className="bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md disabled:opacity-50 transition"
           >
             {isTranslating ? 'Translating...' : 'Translate'}
           </button>
-        </div>
+        </form>
 
-        {/* Custom translated cards */}
-        {customTranslations.map((item, idx) => (
-          <div
-            key={idx}
-            className={`p-3.5 rounded-2xl border space-y-2 text-xs ${
-              isDark ? 'bg-stone-950 border-purple-900/50' : 'bg-purple-50 border-purple-200'
-            }`}
-          >
-            <div className="font-bold text-xs text-purple-600 dark:text-purple-300">"{item.english}"</div>
-
-            {/* Sinhala */}
-            <div className="flex items-start justify-between gap-2 p-2 rounded-xl bg-purple-600/10 border border-purple-500/20">
-              <div>
-                <span className="text-[10px] text-purple-500 font-bold block">Sinhala:</span>
-                <div className="text-sm font-semibold">{item.sinhalaText}</div>
-                <div className="text-[11px] font-mono text-amber-500 dark:text-amber-300">🗣️ "{item.sinhalaPhonetic}"</div>
-              </div>
-              <button
-                onClick={() => handleSpeak(item.sinhalaPhonetic, `custom_sin_${idx}`)}
-                className="p-1.5 rounded-lg bg-purple-600 text-white"
-                title="Speak Sinhala"
+        {/* Display Custom Translation Result (NO voice icon as requested) */}
+        {customTranslations.length > 0 && (
+          <div className="flex flex-col gap-2 mt-2">
+            {customTranslations.map((tr, idx) => (
+              <div
+                key={idx}
+                className="p-3 rounded-xl bg-purple-950/40 border border-purple-700/50 text-white text-xs"
               >
-                <Volume2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
+                <div className="font-bold text-stone-900 dark:text-white mb-1.5 flex items-center justify-between">
+                  <span>"{tr.english}"</span>
+                  <span className="text-[9px] bg-purple-900 text-purple-200 px-1.5 py-0.2 rounded font-mono">
+                    Translated
+                  </span>
+                </div>
 
-            {/* Tamil */}
-            <div className="flex items-start justify-between gap-2 p-2 rounded-xl bg-blue-600/10 border border-blue-500/20">
-              <div>
-                <span className="text-[10px] text-blue-500 font-bold block">Tamil:</span>
-                <div className="text-sm font-semibold">{item.tamilText}</div>
-                <div className="text-[11px] font-mono text-cyan-500 dark:text-cyan-300">🗣️ "{item.tamilPhonetic}"</div>
+                {/* Sinhala */}
+                <div className="p-2 rounded-lg bg-black/40 border border-purple-900/40 mb-1.5">
+                  <span className="text-[10px] text-purple-300 font-bold block">Sinhala:</span>
+                  <p className="text-sm font-semibold text-white mt-0.5">{tr.sinhalaText}</p>
+                  <p className="text-[10px] text-purple-200/80 italic mt-0.5 font-mono">{tr.sinhalaPhonetic}</p>
+                </div>
+
+                {/* Tamil */}
+                <div className="p-2 rounded-lg bg-black/40 border border-purple-900/40">
+                  <span className="text-[10px] text-purple-300 font-bold block">Tamil:</span>
+                  <p className="text-sm font-semibold text-white mt-0.5">{tr.tamilText}</p>
+                  <p className="text-[10px] text-purple-200/80 italic mt-0.5 font-mono">{tr.tamilPhonetic}</p>
+                </div>
               </div>
-              <button
-                onClick={() => handleSpeak(item.tamilPhonetic, `custom_tam_${idx}`)}
-                className="p-1.5 rounded-lg bg-blue-600 text-white"
-                title="Speak Tamil"
-              >
-                <Volume2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
 
-      {/* PRE-TRANSLATED EMERGENCY PHRASEBOOK */}
-      <div className={`p-4 rounded-3xl border space-y-3 ${
-        isDark ? 'bg-[#150f24] border-purple-900/40' : 'bg-white border-purple-100 shadow-sm'
+      {/* SECTION 3: EMERGENCY PHRASEBOOK (Matching Screenshot 8) */}
+      <div className={`rounded-2xl border p-4 shadow-sm ${
+        isDark ? 'bg-[#150a28] border-purple-800/40 text-white' : 'bg-white border-purple-100 text-stone-900 shadow-xs'
       }`}>
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
-            Emergency Phrasebook (Sinhala & Tamil)
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-extrabold text-xs sm:text-sm text-stone-900 dark:text-white">
+            EMERGENCY PHRASEBOOK (SINHALA & TAMIL)
           </h3>
-          <span className="text-xs text-stone-400">{filteredPhrases.length} phrases</span>
+          <span className="text-[10px] bg-purple-900/60 text-purple-300 font-bold px-2 py-0.5 rounded-full">
+            {filteredPhrases.length} phrases
+          </span>
         </div>
 
-        {/* Phrase Categories */}
-        <div className="flex items-center gap-1.5 overflow-x-auto text-[11px]">
+        {/* Filter Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 no-scrollbar text-[11px] font-semibold mb-3">
           {[
             { id: 'all', label: 'All' },
             { id: 'danger', label: '🚨 Urgent / Police' },
             { id: 'medical', label: '🏥 Medical' },
-            { id: 'general', label: '🌸 Period / Washroom' },
-            { id: 'directions', label: '🧭 Directions' },
+            { id: 'washroom', label: '🌸 Period / Washroom' },
+            { id: 'transport', label: '🛺 Transport / Night' },
           ].map((cat) => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id as any)}
-              className={`px-2.5 py-1 rounded-xl shrink-0 font-semibold transition ${
+              className={`px-3 py-1 rounded-xl border shrink-0 transition ${
                 selectedCategory === cat.id
-                  ? 'bg-purple-700 text-white shadow-xs'
+                  ? 'bg-purple-700 text-white border-purple-500 font-bold'
                   : isDark
-                  ? 'bg-stone-900 border-purple-900/30 text-stone-400'
-                  : 'bg-purple-50 border-purple-100 text-purple-900'
+                  ? 'bg-black/30 border-purple-900/40 text-stone-300'
+                  : 'bg-stone-100 border-stone-200 text-stone-700'
               }`}
             >
               {cat.label}
@@ -331,49 +289,29 @@ export const OfflineEmergencyScreen: React.FC<OfflineEmergencyScreenProps> = ({
           ))}
         </div>
 
-        {/* List of Phrases */}
-        <div className="space-y-3">
+        {/* Phrase Cards (NO voice button as requested by user) */}
+        <div className="flex flex-col gap-3">
           {filteredPhrases.map((phrase, idx) => (
             <div
               key={idx}
-              className={`p-3.5 rounded-2xl border space-y-2 text-xs ${
-                isDark ? 'bg-stone-950/80 border-purple-900/30' : 'bg-purple-50/40 border-purple-100'
-              }`}
+              className="p-3.5 rounded-xl border border-purple-900/40 bg-black/30 text-white shadow-xs"
             >
-              <div className="font-bold text-stone-900 dark:text-white leading-snug">
+              <h4 className="font-bold text-xs sm:text-sm text-stone-900 dark:text-white mb-2">
                 {phrase.english}
+              </h4>
+
+              {/* Sinhala Box */}
+              <div className="p-2 rounded-lg bg-purple-950/30 border border-purple-900/40 mb-2">
+                <span className="text-[10px] text-purple-400 font-bold block">Sinhala:</span>
+                <p className="text-sm font-black text-white mt-0.5">{phrase.sinhalaText}</p>
+                <p className="text-[10px] text-purple-200/80 italic mt-0.5 font-mono">{phrase.sinhalaPhonetic}</p>
               </div>
 
-              {/* Sinhala */}
-              <div className="flex items-start justify-between gap-2 p-2 rounded-xl bg-purple-600/10 border border-purple-500/20">
-                <div>
-                  <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold block">Sinhala:</span>
-                  <div className="text-sm font-semibold text-stone-800 dark:text-stone-200">{phrase.sinhalaText}</div>
-                  <div className="text-[11px] font-mono text-amber-600 dark:text-amber-300">🗣️ "{phrase.sinhalaPhonetic}"</div>
-                </div>
-                <button
-                  onClick={() => handleSpeak(phrase.sinhalaPhonetic, `p_sin_${idx}`)}
-                  className="p-1.5 rounded-lg bg-purple-600 text-white shrink-0 hover:bg-purple-500"
-                  title="Speak Sinhala"
-                >
-                  <Volume2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Tamil */}
-              <div className="flex items-start justify-between gap-2 p-2 rounded-xl bg-blue-600/10 border border-blue-500/20">
-                <div>
-                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold block">Tamil:</span>
-                  <div className="text-sm font-semibold text-stone-800 dark:text-stone-200">{phrase.tamilText}</div>
-                  <div className="text-[11px] font-mono text-cyan-600 dark:text-cyan-300">🗣️ "{phrase.tamilPhonetic}"</div>
-                </div>
-                <button
-                  onClick={() => handleSpeak(phrase.tamilPhonetic, `p_tam_${idx}`)}
-                  className="p-1.5 rounded-lg bg-blue-600 text-white shrink-0 hover:bg-blue-500"
-                  title="Speak Tamil"
-                >
-                  <Volume2 className="w-3.5 h-3.5" />
-                </button>
+              {/* Tamil Box */}
+              <div className="p-2 rounded-lg bg-purple-950/30 border border-purple-900/40">
+                <span className="text-[10px] text-purple-400 font-bold block">Tamil:</span>
+                <p className="text-sm font-black text-white mt-0.5">{phrase.tamilText}</p>
+                <p className="text-[10px] text-purple-200/80 italic mt-0.5 font-mono">{phrase.tamilPhonetic}</p>
               </div>
             </div>
           ))}

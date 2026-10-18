@@ -305,7 +305,58 @@ app.get('/api/maps/safety-zones', (req, res) => {
   res.status(200).json({ success: true, zones });
 });
 
-// 4. Custom Safety & Medical Translator (Both Sinhala & Tamil)
+// 4. Custom Safety & Medical Translator (High accuracy for both Sinhala & Tamil)
+const verifiedDictionary: Record<string, { sinhalaText: string; sinhalaPhonetic: string; tamilText: string; tamilPhonetic: string }> = {
+  'help': {
+    sinhalaText: 'මට උදව් කරන්න!',
+    sinhalaPhonetic: 'Mata udav karanna!',
+    tamilText: 'எனக்கு உதவுங்கள்!',
+    tamilPhonetic: 'Enakku udhavungal!',
+  },
+  'police': {
+    sinhalaText: 'මට පොලීසියේ උදව් අවශ්‍යයි!',
+    sinhalaPhonetic: 'Mata polisie udav avashyayi!',
+    tamilText: 'எனக்கு போலீஸ் உதவி தேவை!',
+    tamilPhonetic: 'Enakku police udhavi thevai!',
+  },
+  'hospital': {
+    sinhalaText: 'කරුණාකර මාව ළඟම රෝහලට රැගෙන යන්න.',
+    sinhalaPhonetic: 'Karunakara maava langama rohalata rægena yanna.',
+    tamilText: 'தயவுசெய்து என்னை அருகிலுள்ள மருத்துவமனைக்கு அழைத்துச் செல்லுங்கள்.',
+    tamilPhonetic: 'Thayavuseythu ennai arugilulla maruthuvamanaikku azhaithu chellungal.',
+  },
+  'ambulance': {
+    sinhalaText: 'කරුණාකර 1990 ගිලන් රථයක් කැඳවන්න.',
+    sinhalaPhonetic: 'Karunakara 1990 gilan rathayak kændhawanna.',
+    tamilText: 'தயவுசெய்து 1990 ஆம்புலன்ஸ் அழையுங்கள்.',
+    tamilPhonetic: 'Thayavuseythu 1990 ambulance azhaiyungal.',
+  },
+  'stop': {
+    sinhalaText: 'වාහනය මෙතැන නවත්වන්න!',
+    sinhalaPhonetic: 'Vahanaya methana nawathwanna!',
+    tamilText: 'வாகனத்தை இங்கே நிறுத்துங்கள்!',
+    tamilPhonetic: 'Vaaganathai ingey niruthungal!',
+  },
+  'restroom': {
+    sinhalaText: 'කාන්තා වැසිකිළිය කොහේද?',
+    sinhalaPhonetic: 'Kaantha væsikiliya koheda?',
+    tamilText: 'பெண்கள் கழிப்பறை எங்கே?',
+    tamilPhonetic: 'Pengal kazhipparai engey?',
+  },
+  'sanitary pads': {
+    sinhalaText: 'සනීපාරක්ෂක තුවා (Pads) මිලදී ගත හැක්කේ කොහෙන්ද?',
+    sinhalaPhonetic: 'Sanitary pads mila-di gatha hække kohenda?',
+    tamilText: 'மாதவிடாய் நாப்கின்கள் (Pads) எங்கு வாங்கலாம்?',
+    tamilPhonetic: 'Maathavidaai pads engu vaangalaam?',
+  },
+  'doctor': {
+    sinhalaText: 'මට වෛද්‍යවරයකු හමුවිය යුතුයි.',
+    sinhalaPhonetic: 'Mata vaidyavaraku hamuviya yuthuyi.',
+    tamilText: 'நான் ஒரு மருத்துவரை சந்திக்க வேண்டும்.',
+    tamilPhonetic: 'Naan oru maruthuvarai santhikka vendum.',
+  },
+};
+
 app.post('/api/translate', async (req, res) => {
   try {
     const { text } = req.body;
@@ -313,15 +364,33 @@ app.post('/api/translate', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Text is required' });
     }
 
+    const cleanInput = text.trim().toLowerCase();
+    for (const [key, val] of Object.entries(verifiedDictionary)) {
+      if (cleanInput === key || cleanInput.includes(key)) {
+        return res.status(200).json({
+          success: true,
+          translation: {
+            english: text,
+            ...val,
+          },
+        });
+      }
+    }
+
     if (aiClient) {
-      const prompt = `Translate the following English travel safety/medical phrase into BOTH Sinhala and Tamil. Provide phonetic romanization for English speakers to pronounce accurately.
-Return strictly a valid JSON object in this format:
+      const prompt = `You are a certified professional Sri Lankan linguist. Translate this English safety/medical phrase into BOTH grammatically accurate Sri Lankan Sinhala and Sri Lankan Tamil.
+Phrase: "${text.replace(/"/g, '\\"')}"
+
+Rules:
+1. Provide authentic, formal-polite spoken Sri Lankan phrasing used by tourists seeking assistance.
+2. Provide clear phonetic romanization for English speakers to pronounce easily.
+3. Return strictly valid JSON:
 {
   "english": "${text.replace(/"/g, '\\"')}",
-  "sinhalaText": "Sinhala script translation",
-  "sinhalaPhonetic": "Phonetic english spelling of sinhala",
-  "tamilText": "Tamil script translation",
-  "tamilPhonetic": "Phonetic english spelling of tamil"
+  "sinhalaText": "accurate Sinhala script",
+  "sinhalaPhonetic": "phonetic english spelling",
+  "tamilText": "accurate Tamil script",
+  "tamilPhonetic": "phonetic english spelling"
 }`;
 
       const response = await aiClient.models.generateContent({
@@ -329,18 +398,17 @@ Return strictly a valid JSON object in this format:
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
-          temperature: 0.2,
+          temperature: 0.1,
         },
       });
 
       const parsed = JSON.parse(response.text || '{}');
       return res.status(200).json({ success: true, translation: parsed });
     } else {
-      // Deterministic rule-based fallback
       const fallback = {
         english: text,
-        sinhalaText: `කරුණාකර මට උදව් කරන්න (${text})`,
-        sinhalaPhonetic: `Karunakara mata udawu karanna (${text})`,
+        sinhalaText: `කරුණාකර මට උපකාර කරන්න (${text})`,
+        sinhalaPhonetic: `Karunakara mata upakara karanna (${text})`,
         tamilText: `தயவுசெய்து எனக்கு உதவுங்கள் (${text})`,
         tamilPhonetic: `Thayavuseythu enakku udhavungal (${text})`,
       };
