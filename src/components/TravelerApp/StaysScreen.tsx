@@ -227,15 +227,15 @@ export const StaysScreen: React.FC<StaysScreenProps> = ({
                         {stay.name}
                       </h4>
                       <div className="text-right shrink-0">
-                        <span className="text-xs font-black text-purple-700 dark:text-purple-300">
+                        <span className="text-xs font-black text-purple-800 dark:text-purple-300">
                           LKR {stay.pricePerNightLKR.toLocaleString()}
                         </span>
-                        <span className="text-[9px] text-stone-400 block -mt-0.5">/ night</span>
+                        <span className="text-[10px] text-stone-600 dark:text-stone-400 block font-medium -mt-0.5">/ night</span>
                       </div>
                     </div>
 
                     {/* Stars and Rating */}
-                    <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-stone-500 dark:text-stone-400">
+                    <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-stone-700 dark:text-stone-300 font-medium">
                       <div className="flex items-center gap-0.5 text-amber-500 font-bold">
                         <span>{stay.rating}</span>
                         {[...Array(stay.stars || 3)].map((_, i) => (
@@ -246,14 +246,14 @@ export const StaysScreen: React.FC<StaysScreenProps> = ({
                       <span>· {stay.stars}-star hotel</span>
                     </div>
 
-                    <p className="text-[11px] text-stone-600 dark:text-stone-300 mt-1 line-clamp-1">
+                    <p className="text-[11px] text-stone-800 dark:text-stone-200 mt-1 line-clamp-1 font-medium">
                       {stay.location}
                     </p>
                   </div>
 
                   {/* Amenities / Badges */}
                   <div className="mt-2">
-                    <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-stone-600 dark:text-stone-300">
+                    <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-stone-700 dark:text-stone-300 font-medium">
                       {stay.generalAmenities?.slice(0, 3).map((am, i) => (
                         <span key={i} className="flex items-center gap-0.5">
                           • {am}

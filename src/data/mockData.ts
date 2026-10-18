@@ -685,7 +685,7 @@ export const mockAreaArticles: AreaArticle[] = [
     subtitle: 'Sacred UNESCO World Heritage site housing the relic of the Buddha’s tooth.',
     destinationCity: 'Kandy',
     category: 'Culture & Sacred Heritage',
-    heroImage: 'https://images.unsplash.com/photo-1588598198321-9735fd52455b?w=800&auto=format&fit=crop&q=80',
+    heroImage: 'https://images.unsplash.com/photo-1588598198321-9735fd52455b?w=1000&auto=format&fit=crop&q=85',
     rating: 4.95,
     reviewsCount: 1250,
     readTime: '5 min read',
@@ -709,8 +709,8 @@ export const mockAreaArticles: AreaArticle[] = [
       'The vibrant evening Thevava ritual with ceremonial drummers',
     ],
     photos: [
-      'https://images.unsplash.com/photo-1588598198321-9735fd52455b?w=600&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1546708973-b339540b5162?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1588598198321-9735fd52455b?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1586861635167-e5223aadc9fe?w=800&auto=format&fit=crop&q=80',
     ],
     travelerReviews: [
       {
@@ -729,7 +729,7 @@ export const mockAreaArticles: AreaArticle[] = [
     subtitle: 'A tranquil 3.2 km perimeter stroll along the royal decorative wall (Walakulu Bamma).',
     destinationCity: 'Kandy',
     category: 'Scenic Walks & Parks',
-    heroImage: 'https://images.unsplash.com/photo-1546708973-b339540b5162?w=800&auto=format&fit=crop&q=80',
+    heroImage: 'https://images.unsplash.com/photo-1588258524675-c63589b76c8c?w=1000&auto=format&fit=crop&q=85',
     rating: 4.7,
     reviewsCount: 580,
     readTime: '4 min read',
@@ -751,8 +751,8 @@ export const mockAreaArticles: AreaArticle[] = [
       'Pelican roosting trees and giant harmless water monitors basking at dusk',
     ],
     photos: [
-      'https://images.unsplash.com/photo-1546708973-b339540b5162?w=600&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1588258524675-c63589b76c8c?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1596401057633-54a8fe8ef647?w=800&auto=format&fit=crop&q=80',
     ],
     travelerReviews: [
       {
@@ -813,7 +813,7 @@ export const mockAreaArticles: AreaArticle[] = [
     subtitle: 'Step inside a vintage 1925 four-storey tea factory with operational machinery and tasting room.',
     destinationCity: 'Kandy',
     category: 'Heritage & Culinary',
-    heroImage: 'https://images.unsplash.com/photo-1546708973-b339540b5162?w=800&auto=format&fit=crop&q=80',
+    heroImage: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=1000&auto=format&fit=crop&q=85',
     rating: 4.85,
     reviewsCount: 412,
     readTime: '5 min read',
@@ -835,8 +835,8 @@ export const mockAreaArticles: AreaArticle[] = [
       'James Taylor historical archive and original colonial tea barrels',
     ],
     photos: [
-      'https://images.unsplash.com/photo-1546708973-b339540b5162?w=600&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1544816155-12df9643f363?w=800&auto=format&fit=crop&q=80',
     ],
     travelerReviews: [
       {

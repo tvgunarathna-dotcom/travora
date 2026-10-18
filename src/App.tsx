@@ -18,14 +18,13 @@ import { AiSafetyAssistant } from './components/TravelerApp/AiSafetyAssistant';
 import { FakeCallOverlay } from './components/TravelerApp/FakeCallOverlay';
 import { SubscriptionModal } from './components/TravelerApp/SubscriptionModal';
 import { ProfileModal } from './components/TravelerApp/ProfileModal';
-import { PartnerDashboard } from './components/PartnerPortal/PartnerDashboard';
 import { ArchitectureModal } from './components/ArchitectureView/ArchitectureModal';
 import { apiService } from './services/api';
 import { soundEffects } from './services/soundEffects';
 
 export default function App() {
-  // Top-level View State
-  const [activeView, setActiveView] = useState<'traveler' | 'partner' | 'architecture'>('traveler');
+  // Top-level View State (Partner Portal removed per user request)
+  const [activeView, setActiveView] = useState<'traveler' | 'architecture'>('traveler');
 
   // Traveler App Tabs: Matches exactly the 5 PDF prototype tabs + sub-screens
   const [travelerTab, setTravelerTab] = useState<'safety' | 'map' | 'stays' | 'buddies' | 'ai' | 'offline' | 'verify'>('safety');
@@ -366,14 +365,7 @@ export default function App() {
           </div>
         )}
 
-        {/* VIEW 2: B2B PARTNER PORTAL */}
-        {activeView === 'partner' && (
-          <div className="w-full max-w-5xl overflow-y-auto">
-            <PartnerDashboard theme={theme} />
-          </div>
-        )}
-
-        {/* VIEW 3: TECHNICAL ARCHITECTURE & SCHEMAS */}
+        {/* VIEW 2: TECHNICAL ARCHITECTURE & SCHEMAS */}
         {activeView === 'architecture' && (
           <div className="w-full max-w-5xl overflow-y-auto">
             <ArchitectureModal />

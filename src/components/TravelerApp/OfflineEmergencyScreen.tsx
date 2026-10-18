@@ -100,24 +100,26 @@ export const OfflineEmergencyScreen: React.FC<OfflineEmergencyScreenProps> = ({
 
       {/* SECTION 1: DIRECT HOTLINES: SRI LANKA (Matching Screenshot 8) */}
       <div className={`rounded-2xl border p-4 shadow-sm ${
-        isDark ? 'bg-[#150a28] border-purple-800/40 text-white' : 'bg-white border-purple-100 text-stone-900 shadow-xs'
+        isDark ? 'bg-[#150a28] border-purple-800/40 text-white' : 'bg-white border-purple-200 text-stone-900 shadow-xs'
       }`}>
         <div className="flex items-center justify-between border-b border-purple-900/30 pb-2 mb-3">
-          <div className="flex items-center gap-1.5 text-purple-600 dark:text-purple-300 text-xs font-bold uppercase tracking-wider">
+          <div className="flex items-center gap-1.5 text-purple-800 dark:text-purple-300 text-xs font-black uppercase tracking-wider">
             <Phone className="w-3.5 h-3.5" />
             <span>Direct Hotlines: Sri Lanka</span>
           </div>
-          <span className="text-[10px] text-stone-400 font-semibold">Tap to call</span>
+          <span className="text-[10px] text-stone-600 dark:text-stone-400 font-bold">Tap to call</span>
         </div>
 
         <div className="grid grid-cols-2 gap-2.5">
           {/* National Police */}
           <a
             href="tel:119"
-            className="p-3 rounded-xl border border-purple-900/30 bg-black/20 hover:bg-purple-950/40 flex items-center justify-between transition"
+            className={`p-3 rounded-xl border flex items-center justify-between transition ${
+              isDark ? 'border-purple-900/30 bg-black/20 hover:bg-purple-950/40' : 'border-purple-200 bg-purple-50/50 hover:bg-purple-100'
+            }`}
           >
             <div>
-              <span className="text-[9px] uppercase tracking-wider text-stone-400 font-bold block">
+              <span className="text-[9px] uppercase tracking-wider text-stone-600 dark:text-stone-400 font-bold block">
                 National Police
               </span>
               <span className="text-base font-black text-stone-900 dark:text-white">
@@ -132,13 +134,15 @@ export const OfflineEmergencyScreen: React.FC<OfflineEmergencyScreenProps> = ({
           {/* Tourist Police */}
           <a
             href="tel:1912"
-            className="p-3 rounded-xl border border-purple-900/30 bg-black/20 hover:bg-purple-950/40 flex items-center justify-between transition"
+            className={`p-3 rounded-xl border flex items-center justify-between transition ${
+              isDark ? 'border-purple-900/30 bg-black/20 hover:bg-purple-950/40' : 'border-purple-200 bg-purple-50/50 hover:bg-purple-100'
+            }`}
           >
             <div>
-              <span className="text-[9px] uppercase tracking-wider text-purple-400 font-bold block">
+              <span className="text-[9px] uppercase tracking-wider text-purple-700 dark:text-purple-400 font-bold block">
                 Tourist Police
               </span>
-              <span className="text-base font-black text-purple-600 dark:text-purple-300">
+              <span className="text-base font-black text-purple-700 dark:text-purple-300">
                 1912
               </span>
             </div>
@@ -187,13 +191,13 @@ export const OfflineEmergencyScreen: React.FC<OfflineEmergencyScreenProps> = ({
 
       {/* SECTION 2: CUSTOM SAFETY TRANSLATOR (Matching Screenshot 8) */}
       <div className={`rounded-2xl border p-4 shadow-sm ${
-        isDark ? 'bg-[#150a28] border-purple-800/40 text-white' : 'bg-white border-purple-100 text-stone-900 shadow-xs'
+        isDark ? 'bg-[#150a28] border-purple-800/40 text-white' : 'bg-white border-purple-200 text-stone-900 shadow-xs'
       }`}>
-        <div className="flex items-center gap-2 mb-1 text-purple-600 dark:text-purple-300 font-bold text-xs uppercase tracking-wider">
+        <div className="flex items-center gap-2 mb-1 text-purple-800 dark:text-purple-300 font-black text-xs uppercase tracking-wider">
           <Languages className="w-4 h-4" />
           <span>Custom Safety Translator (Sinhala & Tamil)</span>
         </div>
-        <p className="text-[11px] text-stone-500 dark:text-stone-400 mb-3">
+        <p className="text-[11px] text-stone-600 dark:text-stone-300 mb-3 font-medium">
           Type any phrase to translate with accurate phonetics and native script.
         </p>
 
@@ -204,14 +208,14 @@ export const OfflineEmergencyScreen: React.FC<OfflineEmergencyScreenProps> = ({
             value={customInputText}
             onChange={(e) => setCustomInputText(e.target.value)}
             placeholder="Type custom medical or safety phrase..."
-            className={`flex-1 p-2.5 rounded-xl border text-xs outline-none ${
+            className={`flex-1 p-2.5 rounded-xl border text-xs outline-none font-medium ${
               isDark ? 'bg-black/50 border-purple-800 text-white' : 'bg-purple-50/50 border-purple-200 text-stone-900'
             }`}
           />
           <button
             type="submit"
             disabled={isTranslating || !customInputText.trim()}
-            className="bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md disabled:opacity-50 transition"
+            className="bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-md disabled:opacity-50 transition"
           >
             {isTranslating ? 'Translating...' : 'Translate'}
           </button>
@@ -253,13 +257,13 @@ export const OfflineEmergencyScreen: React.FC<OfflineEmergencyScreenProps> = ({
 
       {/* SECTION 3: EMERGENCY PHRASEBOOK (Matching Screenshot 8) */}
       <div className={`rounded-2xl border p-4 shadow-sm ${
-        isDark ? 'bg-[#150a28] border-purple-800/40 text-white' : 'bg-white border-purple-100 text-stone-900 shadow-xs'
+        isDark ? 'bg-[#150a28] border-purple-800/40 text-white' : 'bg-white border-purple-200 text-stone-900 shadow-xs'
       }`}>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-extrabold text-xs sm:text-sm text-stone-900 dark:text-white">
+          <h3 className="font-black text-xs sm:text-sm text-stone-900 dark:text-white">
             EMERGENCY PHRASEBOOK (SINHALA & TAMIL)
           </h3>
-          <span className="text-[10px] bg-purple-900/60 text-purple-300 font-bold px-2 py-0.5 rounded-full">
+          <span className="text-[10px] bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300 font-extrabold px-2 py-0.5 rounded-full border border-purple-300 dark:border-purple-800/40">
             {filteredPhrases.length} phrases
           </span>
         </div>

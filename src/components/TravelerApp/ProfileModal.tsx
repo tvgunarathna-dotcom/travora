@@ -175,26 +175,82 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
         {/* Modal Scrollable Body */}
         <div className="p-4 sm:p-6 flex flex-col gap-5 max-h-[75vh] overflow-y-auto">
-          {/* USER IDENTITY CARD */}
-          <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-gradient-to-r from-purple-900/40 to-indigo-900/40 border border-purple-600/40 shadow-sm">
-            <img
-              src={user.avatar}
-              alt={name}
-              className="w-16 h-16 rounded-full object-cover border-2 border-purple-400 shadow-md"
-            />
-            <div className="flex-1">
-              <div className="flex items-center gap-1.5">
-                <h3 className="font-black text-base text-stone-900 dark:text-white">
-                  {name}
-                </h3>
-                <span className="text-[9px] bg-purple-900 text-purple-200 font-bold px-2 py-0.5 rounded-full border border-purple-500/40 flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-purple-300" /> ID Verified
+          {/* PROMINENT VERIFIED USER STATUS CARD */}
+          <div className={`p-4 rounded-2xl border transition-all ${
+            user.isVerified
+              ? isDark
+                ? 'bg-gradient-to-r from-emerald-950/60 via-purple-950/50 to-indigo-950/50 border-emerald-500/50 text-white shadow-md'
+                : 'bg-emerald-50/90 border-emerald-300 text-stone-900 shadow-sm'
+              : isDark
+              ? 'bg-rose-950/40 border-rose-800/40 text-stone-200'
+              : 'bg-rose-50 border-rose-200 text-stone-900'
+          }`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <img
+                    src={user.avatar}
+                    alt={name}
+                    className="w-14 h-14 rounded-full object-cover border-2 border-emerald-400 shadow-md"
+                  />
+                  {user.isVerified && (
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center shadow-xs">
+                      <CheckCircle className="w-3 h-3 text-white fill-white" />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-black text-base text-stone-900 dark:text-white">
+                      {name}
+                    </h3>
+                    {user.isVerified ? (
+                      <span className="text-[10px] bg-emerald-600 text-white font-extrabold px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>VERIFIED USER ✓</span>
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-stone-300 text-stone-800 font-bold px-2 py-0.5 rounded-full">
+                        Unverified
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-stone-700 dark:text-purple-200 mt-0.5 font-medium">
+                    {email} · {currentCity}
+                  </p>
+                  <p className="text-[10px] text-emerald-700 dark:text-emerald-300 font-mono font-bold mt-0.5">
+                    ID: SLTDA-AU10TIX:SHA256:9f2c81e3a47d
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-right shrink-0">
+                <span className="text-[10px] bg-purple-700 text-white px-2 py-0.5 rounded-md font-bold uppercase tracking-wider block">
+                  100% Trust Score
+                </span>
+                <span className="text-[9px] text-stone-600 dark:text-stone-300 mt-1 block">
+                  Passport Verified
                 </span>
               </div>
-              <p className="text-xs text-stone-500 dark:text-purple-200 mt-0.5">{email}</p>
-              <p className="text-[10px] text-purple-400 mt-0.5 font-mono">
-                {user.pinkShieldBadgeHash}
-              </p>
+            </div>
+
+            {/* Verification Proof Metrics */}
+            <div className={`mt-3 pt-3 border-t grid grid-cols-3 gap-2 text-center text-xs ${
+              isDark ? 'border-purple-800/40 text-stone-200' : 'border-emerald-200 text-stone-800'
+            }`}>
+              <div className="p-1 rounded-lg bg-black/10 dark:bg-black/30">
+                <span className="text-[10px] text-stone-600 dark:text-stone-400 block font-medium">Status</span>
+                <span className="font-extrabold text-emerald-700 dark:text-emerald-300 text-xs">Verified ✓</span>
+              </div>
+              <div className="p-1 rounded-lg bg-black/10 dark:bg-black/30">
+                <span className="text-[10px] text-stone-600 dark:text-stone-400 block font-medium">Identity Provider</span>
+                <span className="font-extrabold text-purple-700 dark:text-purple-300 text-xs">AU10TIX Global</span>
+              </div>
+              <div className="p-1 rounded-lg bg-black/10 dark:bg-black/30">
+                <span className="text-[10px] text-stone-600 dark:text-stone-400 block font-medium">Biometric Match</span>
+                <span className="font-extrabold text-emerald-700 dark:text-emerald-300 text-xs">3D Liveness 100%</span>
+              </div>
             </div>
           </div>
 

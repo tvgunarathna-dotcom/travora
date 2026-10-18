@@ -36,13 +36,14 @@ export interface SafetyZone {
   safetyScore: number; // 0 - 100
   level: 'safe' | 'caution' | 'alert';
   streetLightingIndex: number; // 0 - 10
-  crimeRiskIndex: number; // 0 - 10
+  crimeRiskIndex?: number; // 0 - 10
   activeSoloTravelers: number;
   userReportsCount: number;
   recommendedCurfew: string;
-  notes: string;
-  polygon: { lat: number; lng: number }[];
-  center: { lat: number; lng: number };
+  notes?: string;
+  coordinates?: { lat: number; lng: number };
+  polygon?: { lat: number; lng: number }[];
+  center?: { lat: number; lng: number };
 }
 
 export interface MapPOI {
@@ -55,7 +56,7 @@ export interface MapPOI {
   open24Hours: boolean;
   operatingHours?: string;
   rating: number;
-  reviewsCount: number;
+  reviewsCount?: number;
   isVerifiedLocalBusiness?: boolean;
   phone?: string;
   image?: string;

@@ -92,18 +92,18 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             isDark ? 'bg-purple-950/40 border-purple-800/40' : 'bg-purple-50/80 border-purple-100'
           }`}>
             <div className="flex items-center gap-1.5">
-              <div className="flex items-center gap-0.5 text-amber-400">
-                <Star className="w-4 h-4 fill-amber-400" />
+              <div className="flex items-center gap-0.5 text-amber-500">
+                <Star className="w-4 h-4 fill-amber-500" />
                 <span className="font-extrabold text-sm text-stone-900 dark:text-white">
                   {article.rating}
                 </span>
               </div>
-              <span className="text-xs text-stone-500 dark:text-stone-400">
-                ({article.reviewsCount} TripAdvisor reviews)
+              <span className="text-xs text-stone-700 dark:text-stone-300 font-medium">
+                ({article.reviewsCount} reviews)
               </span>
             </div>
 
-            <div className="flex items-center gap-3 text-xs text-purple-700 dark:text-purple-300 font-semibold">
+            <div className="flex items-center gap-3 text-xs text-purple-800 dark:text-purple-300 font-bold">
               <span className="flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5" /> {article.duration}
               </span>
@@ -137,7 +137,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             <h3 className="text-sm font-extrabold mb-1.5 text-stone-900 dark:text-purple-200">
               Overview
             </h3>
-            <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 leading-relaxed">
+            <p className="text-xs sm:text-sm text-stone-800 dark:text-stone-200 leading-relaxed font-medium">
               {article.overview}
             </p>
           </div>

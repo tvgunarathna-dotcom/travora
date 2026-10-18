@@ -17,8 +17,8 @@ import {
 import { UserProfile } from '../types';
 
 interface HeaderProps {
-  activeView: 'traveler' | 'partner' | 'architecture';
-  onSelectView: (view: 'traveler' | 'partner' | 'architecture') => void;
+  activeView: 'traveler' | 'architecture';
+  onSelectView: (view: 'traveler' | 'architecture') => void;
   isMobileFrame: boolean;
   onToggleMobileFrame: () => void;
   isOfflineSimulated: boolean;
@@ -49,7 +49,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header className={`sticky top-0 z-40 backdrop-blur-md border-b transition-colors ${
       isDark
         ? 'bg-[#0f0a1c]/95 border-purple-900/40 text-stone-100'
-        : 'bg-white/95 border-purple-100 text-stone-900 shadow-xs'
+        : 'bg-white/95 border-purple-200 text-stone-900 shadow-xs'
     } px-3 sm:px-4 py-2`}>
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2.5">
         {/* Brand Logo & Compass Shield */}
@@ -60,20 +60,20 @@ export const Header: React.FC<HeaderProps> = ({
                 isDark ? 'bg-[#0f0a1c]' : 'bg-white'
               }`}>
                 <Shield className="w-4 h-4 text-purple-600 fill-purple-600/20" />
-                <Compass className="w-2.5 h-2.5 text-purple-400 absolute" />
+                <Compass className="w-2.5 h-2.5 text-purple-500 absolute" />
               </div>
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-sm sm:text-base font-extrabold tracking-wider text-purple-600 dark:text-purple-300">
+                <span className="text-sm sm:text-base font-extrabold tracking-wider text-purple-800 dark:text-purple-300">
                   TRAVORA
                 </span>
-                <span className="text-[9px] bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30 px-1 py-0.2 rounded font-mono font-bold">
+                <span className="text-[9px] bg-purple-100 dark:bg-purple-500/15 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-500/30 px-1 py-0.2 rounded font-mono font-black">
                   FEMALE SAFETY
                 </span>
               </div>
-              <p className="text-[10px] text-stone-500 dark:text-stone-400 -mt-0.5">
-                AU10TIX Verified Community & Dual-Sided Safety
+              <p className="text-[10px] text-stone-600 dark:text-stone-300 font-medium -mt-0.5">
+                AU10TIX Verified Solo Travel Network
               </p>
             </div>
           </div>
@@ -94,7 +94,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Profile Avatar */}
             <button
               onClick={onOpenProfile}
-              className="p-1 rounded-lg border border-purple-600/40 text-purple-600 dark:text-purple-300"
+              className="p-1 rounded-lg border border-purple-600/40 text-purple-600 dark:text-purple-300 relative"
               title="My Profile"
             >
               <img
@@ -102,6 +102,9 @@ export const Header: React.FC<HeaderProps> = ({
                 alt={user.name}
                 className="w-5 h-5 rounded-full object-cover"
               />
+              {user.isVerified && (
+                <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white" />
+              )}
             </button>
 
             {/* Viewport switch */}
@@ -116,39 +119,27 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* View Switcher: Traveler App vs Partner Portal vs Architecture */}
+        {/* View Switcher: Traveler App & Tech Specs (Partner Portal removed per user request) */}
         <div className={`flex items-center gap-1 p-1 rounded-xl border text-xs w-full md:w-auto justify-center ${
-          isDark ? 'bg-stone-900/90 border-purple-900/30' : 'bg-purple-50/80 border-purple-100'
+          isDark ? 'bg-stone-900/90 border-purple-900/30' : 'bg-purple-50/80 border-purple-200'
         }`}>
           <button
             onClick={() => onSelectView('traveler')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold transition ${
               activeView === 'traveler'
                 ? 'bg-purple-700 text-white shadow-sm'
-                : 'text-stone-500 dark:text-stone-400 hover:text-purple-600'
+                : 'text-stone-700 dark:text-stone-300 hover:text-purple-700'
             }`}
           >
-            <span>👩 Traveler App</span>
-          </button>
-
-          <button
-            onClick={() => onSelectView('partner')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition ${
-              activeView === 'partner'
-                ? 'bg-purple-700 text-white shadow-sm'
-                : 'text-stone-500 dark:text-stone-400 hover:text-purple-600'
-            }`}
-          >
-            <Building2 className="w-3.5 h-3.5" />
-            <span>Partner Portal (12%)</span>
+            <span>👩 Solo Traveler App</span>
           </button>
 
           <button
             onClick={() => onSelectView('architecture')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition ${
               activeView === 'architecture'
                 ? 'bg-purple-700 text-white shadow-sm'
-                : 'text-stone-500 dark:text-stone-400 hover:text-purple-600'
+                : 'text-stone-700 dark:text-stone-300 hover:text-purple-700'
             }`}
           >
             <Code2 className="w-3.5 h-3.5" />
