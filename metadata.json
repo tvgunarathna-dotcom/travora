@@ -1,0 +1,6 @@
+{
+  "name": "TRAVORA - Female Solo Traveler Safety & Community",
+  "description": "Dual-sided safety infrastructure, verified buddy network, hygiene maps, trip timers, offline emergency mode, and AI assistant for solo female travelers.",
+  "requestFramePermissions": ["geolocation", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
