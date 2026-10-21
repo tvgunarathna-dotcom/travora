@@ -1,16 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import {
-  MapPin,
   Shield,
-  Users,
+  MapPin,
   Building2,
+  Users,
   Sparkles,
+  PhoneCall,
+  Download,
+  AlertTriangle,
+  UserCheck,
+  Crown,
+  LogIn,
+  CheckCircle,
 } from 'lucide-react';
-import { UserProfile, EmergencyHotlineData, TripTimerState, SafeStay, TravelGuide } from './types';
+import {
+  UserProfile,
+  TripTimerState,
+  EmergencyHotlineData,
+  SafeStay,
+  TravelGuide,
+} from './types';
 import { initialCurrentUser, fallbackHotlines } from './data/mockData';
 import { Header } from './components/Header';
-import { MapScreen } from './components/TravelerApp/MapScreen';
 import { SafetyDashboard } from './components/TravelerApp/SafetyDashboard';
+import { MapScreen } from './components/TravelerApp/MapScreen';
 import { StaysScreen } from './components/TravelerApp/StaysScreen';
 import { BuddyFeedScreen } from './components/TravelerApp/BuddyFeedScreen';
 import { OfflineEmergencyScreen } from './components/TravelerApp/OfflineEmergencyScreen';
@@ -18,16 +31,19 @@ import { AiSafetyAssistant } from './components/TravelerApp/AiSafetyAssistant';
 import { FakeCallOverlay } from './components/TravelerApp/FakeCallOverlay';
 import { SubscriptionModal } from './components/TravelerApp/SubscriptionModal';
 import { ProfileModal } from './components/TravelerApp/ProfileModal';
+import { PremiumSuiteScreen } from './components/TravelerApp/PremiumSuiteScreen';
+import { Au10tixVerificationModal } from './components/TravelerApp/Au10tixVerificationModal';
+import { AuthModal } from './components/TravelerApp/AuthModal';
 import { ArchitectureModal } from './components/ArchitectureView/ArchitectureModal';
 import { apiService } from './services/api';
 import { soundEffects } from './services/soundEffects';
 
 export default function App() {
-  // Top-level View State (Partner Portal removed per user request)
-  const [activeView, setActiveView] = useState<'traveler' | 'architecture'>('traveler');
+  // Top-level View State: 'traveler' | 'premium' (Separate Premium Edition) | 'architecture'
+  const [activeView, setActiveView] = useState<'traveler' | 'premium' | 'architecture'>('traveler');
 
-  // Traveler App Tabs: Matches exactly the 5 PDF prototype tabs + sub-screens
-  const [travelerTab, setTravelerTab] = useState<'safety' | 'map' | 'stays' | 'buddies' | 'ai' | 'offline' | 'verify'>('safety');
+  // Traveler App Tabs
+  const [travelerTab, setTravelerTab] = useState<'safety' | 'map' | 'stays' | 'buddies' | 'ai' | 'offline' | 'premium'>('safety');
 
   // Theme State: 'dark' | 'light'
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -35,13 +51,15 @@ export default function App() {
     return (saved as 'dark' | 'light') || 'light';
   });
 
+  // Account State: 'verified' | 'unverified' | 'guest'
+  const [accountMode, setAccountMode] = useState<'verified' | 'unverified' | 'guest'>('verified');
+
   // User Profile: Default Piyumi Anuradha
   const [user, setUser] = useState<UserProfile>(() => {
     const saved = localStorage.getItem('travora_user_profile');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Ensure name is Piyumi Anuradha
         if (parsed.name !== 'Piyumi Anuradha') {
           return { ...parsed, name: 'Piyumi Anuradha' };
         }
@@ -73,6 +91,8 @@ export default function App() {
   const [fakeCallPersonaId, setFakeCallPersonaId] = useState('mom');
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showAu10tixModal, setShowAu10tixModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [isFreemiumPrompt, setIsFreemiumPrompt] = useState(false);
   const [checkoutBookingItem, setCheckoutBookingItem] = useState<any>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -94,6 +114,58 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('travora_user_profile', JSON.stringify(user));
   }, [user]);
+
+  // Handle Account Mode changes
+  const handleSetAccountMode = (mode: 'verified' | 'unverified' | 'guest') => {
+    setAccountMode(mode);
+    if (mode === 'verified') {
+      setUser({
+        ...initialCurrentUser,
+        name: 'Piyumi Anuradha',
+        isVerified: true,
+        verificationProvider: 'AU10TIX',
+        pinkShieldBadgeHash: 'AU10TIX:SHA256:9f2c81e3a47d',
+      });
+      triggerToast('Signed in as Piyumi Anuradha (AU10TIX Verified ✓)');
+    } else if (mode === 'unverified') {
+      setUser({
+        ...initialCurrentUser,
+        name: 'Piyumi Anuradha',
+        isVerified: false,
+        verificationProvider: undefined,
+        verificationDate: undefined,
+        pinkShieldBadgeHash: undefined,
+      });
+      triggerToast('Account switched to Unverified. Prompting AU10TIX verification.');
+    } else {
+      // Guest mode
+      setUser({
+        ...initialCurrentUser,
+        id: 'guest_user',
+        name: 'Guest Traveler',
+        email: 'guest@travora.travel',
+        isVerified: false,
+        verificationProvider: undefined,
+        verificationDate: undefined,
+        pinkShieldBadgeHash: undefined,
+        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
+      });
+      triggerToast('Switched to Guest Mode (Not Signed In).');
+    }
+  };
+
+  const handleAu10tixComplete = (idType: any, badgeHash: string) => {
+    setUser((prev) => ({
+      ...prev,
+      isVerified: true,
+      verificationProvider: 'AU10TIX',
+      verificationDate: new Date().toISOString().split('T')[0],
+      idType,
+      pinkShieldBadgeHash: badgeHash,
+    }));
+    setAccountMode('verified');
+    triggerToast('🎉 AU10TIX Biometric Verification Successful! Verified Pink Shield Badge issued.');
+  };
 
   // Global Trip Timer Countdown Interval
   useEffect(() => {
@@ -171,6 +243,10 @@ export default function App() {
   };
 
   const handleBookStay = (stay: SafeStay) => {
+    if (accountMode === 'guest') {
+      setShowAuthModal(true);
+      return;
+    }
     setCheckoutBookingItem({
       title: `${stay.name} (${stay.type})`,
       partnerName: stay.name,
@@ -183,6 +259,10 @@ export default function App() {
   };
 
   const handleBookGuide = (guide: TravelGuide) => {
+    if (accountMode === 'guest') {
+      setShowAuthModal(true);
+      return;
+    }
     setCheckoutBookingItem({
       title: `${guide.name} - Full Day Cultural Tour`,
       partnerName: guide.name,
@@ -197,9 +277,11 @@ export default function App() {
   const isDark = theme === 'dark';
 
   return (
-    <div className={`min-h-screen flex flex-col font-['Plus_Jakarta_Sans',sans-serif] transition-colors duration-200 ${
-      isDark ? 'bg-[#0b0518] text-stone-100' : 'bg-[#FAF5FF] text-stone-900'
-    }`}>
+    <div
+      className={`min-h-screen flex flex-col font-['Plus_Jakarta_Sans',sans-serif] transition-colors duration-200 ${
+        isDark ? 'bg-[#0b0518] text-stone-100' : 'bg-[#FAF5FF] text-stone-900'
+      }`}
+    >
       {/* Top Application Header Bar */}
       <Header
         activeView={activeView}
@@ -212,12 +294,15 @@ export default function App() {
         theme={theme}
         onToggleTheme={handleToggleTheme}
         onOpenProfile={() => setShowProfileModal(true)}
-        onOpenVerification={() => setTravelerTab('verify')}
+        onOpenVerification={() => setShowAu10tixModal(true)}
+        onOpenAuth={() => setShowAuthModal(true)}
+        accountMode={accountMode}
+        onSetAccountMode={handleSetAccountMode}
       />
 
       {/* Persistent Global Toast Message */}
       {toastMessage && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-purple-950/95 border border-purple-500 text-white text-xs font-semibold shadow-2xl flex items-center gap-2 animate-bounce">
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-purple-950/95 border border-purple-500 text-white text-xs font-semibold shadow-2xl flex items-center gap-2 animate-bounce">
           <div className="w-2 h-2 rounded-full bg-emerald-400" />
           <span>{toastMessage}</span>
         </div>
@@ -225,13 +310,15 @@ export default function App() {
 
       {/* Main Container */}
       <main className="flex-1 flex justify-center items-start p-2 sm:p-4">
-        {/* VIEW 1: TRAVELER APPLICATION */}
+        {/* VIEW 1: SOLO TRAVELER APPLICATION */}
         {activeView === 'traveler' && (
-          <div className={`w-full flex flex-col transition-all duration-200 ${
-            isMobileFrame
-              ? 'max-w-[430px] h-[860px] rounded-[44px] shadow-2xl border-[8px] border-stone-800/80 dark:border-stone-950 bg-white dark:bg-[#0f0a1c] overflow-hidden relative'
-              : 'max-w-4xl min-h-[820px] rounded-3xl border border-purple-900/40 bg-white dark:bg-[#0f0a1c]'
-          }`}>
+          <div
+            className={`w-full flex flex-col transition-all duration-200 ${
+              isMobileFrame
+                ? 'max-w-[430px] h-[860px] rounded-[44px] shadow-2xl border-[8px] border-stone-800/80 dark:border-stone-950 bg-white dark:bg-[#0f0a1c] overflow-hidden relative'
+                : 'max-w-4xl min-h-[820px] rounded-3xl border border-purple-900/40 bg-white dark:bg-[#0f0a1c]'
+            }`}
+          >
             {/* Mobile Device Status Bar */}
             {isMobileFrame && (
               <div className="h-6 w-full flex items-center justify-between px-6 text-[11px] text-stone-400 shrink-0 bg-transparent z-20">
@@ -254,9 +341,40 @@ export default function App() {
               </div>
             )}
 
-            {/* Scrollable Interior Container (Restricts vertical overflow!) */}
+            {/* UNVERIFIED / GUEST PROMPT BANNER */}
+            {accountMode === 'unverified' && (
+              <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 text-stone-950 px-3 py-2 text-xs font-bold flex items-center justify-between gap-2 shadow-xs shrink-0 z-20">
+                <div className="flex items-center gap-1.5 truncate">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-stone-950" />
+                  <span className="truncate">Identity Unverified. Complete AU10TIX biometric scan to unlock shield badge.</span>
+                </div>
+                <button
+                  onClick={() => setShowAu10tixModal(true)}
+                  className="px-2.5 py-1 rounded-lg bg-stone-950 text-amber-300 hover:text-white font-black text-[11px] shrink-0 transition active:scale-95"
+                >
+                  Verify Now
+                </button>
+              </div>
+            )}
+
+            {accountMode === 'guest' && (
+              <div className="bg-gradient-to-r from-purple-800 via-purple-700 to-indigo-800 text-white px-3 py-2 text-xs font-bold flex items-center justify-between gap-2 shadow-xs shrink-0 z-20">
+                <div className="flex items-center gap-1.5 truncate">
+                  <LogIn className="w-4 h-4 shrink-0 text-purple-300" />
+                  <span className="truncate">Browsing as Guest. Sign in to activate live GPS beacon & travel buddy chat.</span>
+                </div>
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="px-2.5 py-1 rounded-lg bg-white text-purple-900 hover:bg-purple-100 font-black text-[11px] shrink-0 transition active:scale-95"
+                >
+                  Sign In
+                </button>
+              </div>
+            )}
+
+            {/* Scrollable Interior Container */}
             <div className="flex-1 overflow-y-auto no-scrollbar">
-              {/* TAB 1: SAFETY (Screenshot 1) */}
+              {/* TAB 1: SAFETY */}
               {travelerTab === 'safety' && (
                 <SafetyDashboard
                   user={user}
@@ -274,7 +392,7 @@ export default function App() {
                 />
               )}
 
-              {/* TAB 2: EXPLORE / MAPS & ARTICLES (Screenshot 2) */}
+              {/* TAB 2: EXPLORE / MAPS & ARTICLES */}
               {travelerTab === 'map' && (
                 <MapScreen
                   onAskSerenaAI={(query) => {
@@ -289,7 +407,7 @@ export default function App() {
                 />
               )}
 
-              {/* TAB 3: RIDES & STAYS (Screenshots 3 & 4) */}
+              {/* TAB 3: RIDES & STAYS */}
               {travelerTab === 'stays' && (
                 <StaysScreen
                   onBookStay={handleBookStay}
@@ -297,11 +415,11 @@ export default function App() {
                 />
               )}
 
-              {/* TAB 4: COMMUNITY (Screenshots 5, 6 & 7) */}
+              {/* TAB 4: COMMUNITY & TRAVEL BUDDIES */}
               {travelerTab === 'buddies' && (
                 <BuddyFeedScreen
                   user={user}
-                  onOpenVerification={() => setTravelerTab('verify')}
+                  onOpenVerification={() => setShowAu10tixModal(true)}
                   onBookGuide={handleBookGuide}
                   theme={theme}
                 />
@@ -315,7 +433,19 @@ export default function App() {
                 />
               )}
 
-              {/* SUB-SCREEN: OFFLINE EMERGENCY MODE (Screenshot 8) */}
+              {/* TAB 6: DEDICATED PREMIUM SUITE (Accessible inside mobile frame too!) */}
+              {travelerTab === 'premium' && (
+                <div className="p-3 sm:p-4">
+                  <PremiumSuiteScreen
+                    user={user}
+                    onUpdateUser={setUser}
+                    onOpenMap={() => setTravelerTab('map')}
+                    theme={theme}
+                  />
+                </div>
+              )}
+
+              {/* SUB-SCREEN: OFFLINE EMERGENCY MODE */}
               {travelerTab === 'offline' && (
                 <OfflineEmergencyScreen
                   onBack={() => setTravelerTab('safety')}
@@ -331,16 +461,18 @@ export default function App() {
               )}
             </div>
 
-            {/* FIXED BOTTOM NAVIGATION BAR: Exactly the 5 Tabs matching PDF screenshots! */}
-            <nav className={`shrink-0 border-t px-2 py-2 flex items-center justify-around z-30 transition-colors ${
-              isDark
-                ? 'bg-[#0b0518]/95 border-purple-900/40 backdrop-blur-md'
-                : 'bg-white/95 border-purple-100 shadow-md backdrop-blur-md'
-            }`}>
+            {/* FIXED BOTTOM NAVIGATION BAR */}
+            <nav
+              className={`shrink-0 border-t px-2 py-2 flex items-center justify-around z-30 transition-colors ${
+                isDark
+                  ? 'bg-[#0b0518]/95 border-purple-900/40 backdrop-blur-md'
+                  : 'bg-white/95 border-purple-100 shadow-md backdrop-blur-md'
+              }`}
+            >
               {[
                 { id: 'safety', label: 'Safety', icon: Shield },
                 { id: 'map', label: 'Explore', icon: MapPin },
-                { id: 'stays', label: 'Rides & Stays', icon: Building2 },
+                { id: 'stays', label: 'Stays', icon: Building2 },
                 { id: 'buddies', label: 'Community', icon: Users },
                 { id: 'ai', label: 'Serena', icon: Sparkles },
               ].map((tab) => {
@@ -350,13 +482,23 @@ export default function App() {
                   <button
                     key={tab.id}
                     onClick={() => setTravelerTab(tab.id as any)}
-                    className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition ${
+                    className={`flex flex-col items-center gap-1 py-1 px-1.5 rounded-xl transition ${
                       isActive
-                        ? 'text-purple-600 dark:text-purple-300 font-extrabold'
+                        ? tab.id === 'premium'
+                          ? 'text-amber-500 font-extrabold'
+                          : 'text-purple-600 dark:text-purple-300 font-extrabold'
                         : 'text-stone-400 hover:text-purple-600 font-medium'
                     }`}
                   >
-                    <Icon className={`w-5 h-5 ${isActive ? 'text-purple-600 dark:text-purple-400 stroke-[2.5]' : 'text-stone-400'}`} />
+                    <Icon
+                      className={`w-5 h-5 ${
+                        isActive
+                          ? tab.id === 'premium'
+                            ? 'text-amber-500 stroke-[2.5]'
+                            : 'text-purple-600 dark:text-purple-400 stroke-[2.5]'
+                          : 'text-stone-400'
+                      }`}
+                    />
                     <span className="text-[10px] tracking-tight">{tab.label}</span>
                   </button>
                 );
@@ -365,7 +507,23 @@ export default function App() {
           </div>
         )}
 
-        {/* VIEW 2: TECHNICAL ARCHITECTURE & SCHEMAS */}
+        {/* VIEW 2: STANDALONE SEPARATE PREMIUM VERSION SCREEN */}
+        {activeView === 'premium' && (
+          <div className="w-full max-w-5xl">
+            <PremiumSuiteScreen
+              user={user}
+              onUpdateUser={setUser}
+              onOpenMap={() => {
+                setActiveView('traveler');
+                setTravelerTab('map');
+              }}
+              theme={theme}
+              onBackToStandard={() => setActiveView('traveler')}
+            />
+          </div>
+        )}
+
+        {/* VIEW 3: TECHNICAL ARCHITECTURE & SCHEMAS */}
         {activeView === 'architecture' && (
           <div className="w-full max-w-5xl overflow-y-auto">
             <ArchitectureModal />
@@ -373,7 +531,7 @@ export default function App() {
         )}
       </main>
 
-      {/* FAKE CALL DISRUPTION FULLSCREEN OVERLAY (Up to 1 minute long) */}
+      {/* FAKE CALL DISRUPTION FULLSCREEN OVERLAY */}
       {showFakeCall && (
         <FakeCallOverlay
           initialPersonaId={fakeCallPersonaId}
@@ -385,7 +543,7 @@ export default function App() {
         />
       )}
 
-      {/* PROFILE PAGE / MODAL (Piyumi Anuradha, editable contacts, switch to premium) */}
+      {/* PROFILE PAGE / MODAL */}
       <ProfileModal
         isOpen={showProfileModal}
         onClose={() => setShowProfileModal(false)}
@@ -398,13 +556,34 @@ export default function App() {
         onToggleTheme={handleToggleTheme}
         onUpgradePrompt={() => {
           setShowProfileModal(false);
-          setIsFreemiumPrompt(true);
-          setCheckoutBookingItem(null);
-          setShowSubscriptionModal(true);
+          setActiveView('premium');
         }}
+        onOpenAu10tix={() => setShowAu10tixModal(true)}
       />
 
-      {/* SUBSCRIPTION & 12% COMMISSION BNPL CHECKOUT MODAL */}
+      {/* AU10TIX IDENTITY VERIFICATION MODAL */}
+      <Au10tixVerificationModal
+        isOpen={showAu10tixModal}
+        onClose={() => setShowAu10tixModal(false)}
+        userName={user.name}
+        onCompleteVerification={handleAu10tixComplete}
+        theme={theme}
+      />
+
+      {/* AUTH & SIGN IN MODAL FOR GUESTS */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSignInAsUser={(newUser) => {
+          setUser(newUser);
+          setAccountMode(newUser.isVerified ? 'verified' : 'unverified');
+          triggerToast(`Signed in as ${newUser.name}`);
+        }}
+        onOpenAu10tix={() => setShowAu10tixModal(true)}
+        theme={theme}
+      />
+
+      {/* SUBSCRIPTION MODAL */}
       <SubscriptionModal
         isOpen={showSubscriptionModal}
         onClose={() => {

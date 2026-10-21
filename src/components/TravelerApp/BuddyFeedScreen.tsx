@@ -586,24 +586,28 @@ export const BuddyFeedScreen: React.FC<BuddyFeedScreenProps> = ({
                         ))}
                       </div>
 
-                      {/* Both author & testing users can edit/delete requests */}
+                      {/* Only show Edit and Delete options on user's own posts */}
                       <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleOpenEditModal(post)}
-                          className="px-2.5 py-1.5 rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-800 text-xs font-bold flex items-center gap-1 transition"
-                          title="Edit Dates, Times, or Details"
-                        >
-                          <Edit2 className="w-3 h-3" />
-                          <span>Edit</span>
-                        </button>
-                        <button
-                          onClick={() => handleRequestDelete(post)}
-                          className="px-2.5 py-1.5 rounded-lg bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-200 dark:hover:bg-rose-900 text-xs font-bold flex items-center gap-1 transition"
-                          title="Delete Request"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          <span>Delete</span>
-                        </button>
+                        {isMyPost && (
+                          <>
+                            <button
+                              onClick={() => handleOpenEditModal(post)}
+                              className="px-2.5 py-1.5 rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-800 text-xs font-bold flex items-center gap-1 transition"
+                              title="Edit Dates, Times, or Details"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              onClick={() => handleRequestDelete(post)}
+                              className="px-2.5 py-1.5 rounded-lg bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-200 dark:hover:bg-rose-900 text-xs font-bold flex items-center gap-1 transition"
+                              title="Delete Request"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>Delete</span>
+                            </button>
+                          </>
+                        )}
 
                         {!isMyPost && (
                           <button

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   MapPin,
   Search,
@@ -73,6 +73,20 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
   const [selectedArticle, setSelectedArticle] = useState<AreaArticle | null>(null);
   const [showAddArticleModal, setShowAddArticleModal] = useState(false);
+
+  // Filter articles specifically by current district / city
+  // Hanthana mountain hike is strictly for Kandy; Colombo shows Lotus Tower, Independence Square, Gangaramaya; Galle shows Galle Fort, Rumassala, Martin Wickramasinghe Museum
+  const currentCityName = useMemo(() => {
+    return activeDistrict.name.replace(' District', '').trim().toLowerCase();
+  }, [activeDistrict.name]);
+
+  const displayedArticles = useMemo(() => {
+    const matched = articlesList.filter((art) => {
+      const artCity = (art.destinationCity || '').toLowerCase();
+      return artCity.includes(currentCityName) || currentCityName.includes(artCity);
+    });
+    return matched.length > 0 ? matched : articlesList;
+  }, [articlesList, currentCityName]);
 
   // Update selected zone when district changes
   useEffect(() => {
@@ -389,7 +403,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         {[
           { key: 'kandy', label: 'Kandy' },
           { key: 'colombo', label: 'Colombo' },
-          { key: 'galle', label: 'Galle Fort' },
+          { key: 'galle', label: 'Galle' },
           { key: 'ella', label: 'Ella' },
           { key: 'nuwara_eliya', label: 'Nuwara Eliya' },
           { key: 'jaffna', label: 'Jaffna' },
@@ -770,20 +784,20 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             </p>
           </div>
           <span className="text-xs text-purple-700 dark:text-purple-400 font-bold shrink-0">
-            {articlesList.length} Articles
+            {displayedArticles.length} Articles
           </span>
         </div>
 
         {/* Featured Top Article */}
-        {articlesList[0] && (
+        {displayedArticles[0] && (
           <div
-            onClick={() => setSelectedArticle(articlesList[0])}
+            onClick={() => setSelectedArticle(displayedArticles[0])}
             className="relative rounded-3xl overflow-hidden border border-purple-800/40 shadow-xl cursor-pointer group mb-3 transform active:scale-98 transition"
           >
             <div className="h-52 sm:h-60 w-full overflow-hidden bg-stone-900">
               <img
-                src={articlesList[0].heroImage}
-                alt={articlesList[0].title}
+                src={displayedArticles[0].heroImage}
+                alt={displayedArticles[0].title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
@@ -791,20 +805,20 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
             <div className="absolute bottom-4 left-4 right-4 text-white">
               <span className="text-[10px] bg-purple-600 text-white font-bold px-2.5 py-0.5 rounded-md inline-block mb-1 shadow-sm">
-                Top Rated Hike · {articlesList[0].destinationCity}
+                Top Rated · {displayedArticles[0].destinationCity}
               </span>
               <h4 className="text-lg sm:text-xl font-black leading-tight drop-shadow-md">
-                {articlesList[0].title}
+                {displayedArticles[0].title}
               </h4>
               <p className="text-xs text-purple-200 mt-0.5 drop-shadow-sm line-clamp-1">
-                {articlesList[0].subtitle}
+                {displayedArticles[0].subtitle}
               </p>
               <div className="flex items-center gap-3 mt-2 text-[11px] text-purple-200 font-medium">
                 <span className="flex items-center gap-1">
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> {articlesList[0].rating} ({articlesList[0].reviewsCount})
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> {displayedArticles[0].rating} ({displayedArticles[0].reviewsCount})
                 </span>
-                <span>• {articlesList[0].duration}</span>
-                <span>• {articlesList[0].difficulty}</span>
+                <span>• {displayedArticles[0].duration}</span>
+                <span>• {displayedArticles[0].difficulty}</span>
               </div>
             </div>
           </div>
@@ -812,7 +826,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
         {/* Other Article Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          {articlesList.slice(1).map((art) => (
+          {displayedArticles.slice(1).map((art) => (
             <div
               key={art.id}
               onClick={() => setSelectedArticle(art)}

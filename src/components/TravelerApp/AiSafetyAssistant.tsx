@@ -38,9 +38,9 @@ export const AiSafetyAssistant: React.FC<AiSafetyAssistantProps> = ({
     {
       id: 'init_1',
       role: 'assistant',
-      content: `Hello! I'm **Serena**, your personal TRAVORA safety companion and cultural concierge. 
+      content: `Hello! I'm **Serena**, your personal TRAVORA travel companion and AI concierge. 
 
-I'm here 24/7 to advise you on safe walking routes in **${currentCity}**, sacred temple dress codes, metered HelaGo ride verifications, and urgent translation assistance. You can also toggle Voice Chat below to speak with me directly.`,
+I'm here 24/7 to provide you with **personalized travel advice**, safe walking routes in **${currentCity}**, sacred temple dress codes, hidden cultural gems, and custom itinerary suggestions across Kandy, Galle, Colombo, Ella, Nuwara Eliya, Jaffna, Trincomalee, and beyond. How can I assist your journey today?`,
       timestamp: 'Active Now',
     },
   ]);
@@ -51,10 +51,12 @@ I'm here 24/7 to advise you on safe walking routes in **${currentCity}**, sacred
   const [isListening, setIsListening] = useState(false);
 
   const samplePrompts = [
-    'Is Pettah Market safe for solo female after 7 PM?',
+    'Top safe things to do in Kandy for a solo female traveler',
+    'Best sunset walking route & safe cafes in Galle Fort',
     'Temple dress codes & etiquette for Temple of the Tooth',
-    'Where to buy menstrual cups and organic pads nearby?',
-    'How to negotiate metered tuk-tuks safely',
+    'Tips for scenic train ride from Kandy to Ella',
+    'How safe is Pettah Market & Colombo 07 in the evening?',
+    'What to pack for Gregory Lake & Nuwara Eliya weather?',
   ];
 
   // Speech-to-Text simulation / Web Speech API

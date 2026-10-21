@@ -125,11 +125,12 @@ export const SafetyDashboard: React.FC<SafetyDashboardProps> = ({
           <User className="w-5 h-5 text-white" />
         </button>
 
-        <div className="flex items-center gap-1.5">
-          <div className="w-6 h-6 rounded-lg bg-purple-600 flex items-center justify-center relative shadow-xs">
-            <Shield className="w-4 h-4 text-white" />
-            <Compass className="w-2.5 h-2.5 text-purple-200 absolute" />
-          </div>
+        <div className="flex items-center gap-2">
+          <img
+            src="/assets/aistudio/TRAVORA-Compass-Transparent_cd89c439.png"
+            alt="TRAVORA Logo"
+            className="w-8 h-8 object-contain drop-shadow-sm shrink-0"
+          />
           <span className="text-xl font-black tracking-wider text-purple-900 dark:text-purple-300">
             TRAVORA
           </span>
